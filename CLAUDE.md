@@ -48,3 +48,8 @@ model        — leaf; no dependencies on other internal packages
 
 Jackson (`com.fasterxml.jackson`) is allowed only in `parser` and `model`.
 Consumers must only import from `api`, never from `internal` directly.
+
+## Code style
+
+Google Java Style Guide, enforced by Checkstyle (`checkstyle:check` runs on `mvn verify`).
+Use 2-space indentation. Violations fail the build.
