@@ -37,8 +37,14 @@ se.plilja.jsonschemagen
     └── generator model → JSON value string
 ```
 
-- Code in `api` may import from `internal`; `api` is the facade that
-  delegates to the implementation.
-- Code in `internal` must not import from `api` (prevents circular deps).
-- Consumers must only import from `api`, never from `internal` directly.
-- Jackson is used only inside `internal`; it must not appear in `api` types.
+Allowed dependencies (enforced by ArchUnit — violations fail `mvn test`):
+
+```
+api          — entry point; may access all layers
+parser       — may only access model
+generator    — may only access model
+model        — leaf; no dependencies on other internal packages
+```
+
+Jackson (`com.fasterxml.jackson`) is allowed only in `parser` and `model`.
+Consumers must only import from `api`, never from `internal` directly.

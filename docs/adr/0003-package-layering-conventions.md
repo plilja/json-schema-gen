@@ -1,0 +1,38 @@
+# ADR-0003: Package Layering Conventions
+
+## Status
+Accepted
+
+## Context
+The codebase is divided into a public `api` package and an `internal` implementation
+split across `parser`, `model`, and `generator` subpackages. Without explicit rules,
+dependencies between these packages can drift over time, making the codebase harder
+to understand and maintain.
+
+## Decision
+Enforce the following layering:
+
+```
+api          — entry point; may access parser, generator, and model
+parser       — may only access model
+generator    — may only access model
+model        — leaf; no dependencies on other internal packages
+```
+
+Additionally, Jackson (`com.fasterxml.jackson`) is allowed only in `parser` and
+`model`. All other packages — including `api` — must not depend on Jackson.
+
+These rules are enforced as automated tests using ArchUnit.
+
+## Rationale
+- `model` as a leaf keeps the schema representation free of parsing and generation
+  concerns, making it easy to reason about in isolation.
+- Keeping `parser` and `generator` independent of each other means either can be
+  replaced without affecting the other.
+- Restricting Jackson to `parser` and `model` preserves the guarantee that the
+  public API is free of third-party types, as established in ADR-0001.
+
+## Consequences
+- Any future code that violates the layering or Jackson scope will cause the
+  ArchUnit tests to fail, giving immediate feedback.
+- New internal subpackages must be consciously placed in the layer diagram.
