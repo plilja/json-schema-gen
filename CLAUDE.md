@@ -16,10 +16,12 @@ mvn test                # run unit tests
 
 Three-phase pipeline:
 
-1. **Parser** — reads a JSON Schema document (Jackson tree) and produces
-   an internal schema model.
-2. **Model** — plain Java classes representing schema constructs
-   (type, constraints, $ref, combining keywords, etc.).
+1. **Parser** — deserializes a JSON Schema document into the internal
+   schema model using Jackson data-binding annotations.
+2. **Model** — Java classes representing schema constructs
+   (type, constraints, $ref, combining keywords, etc.).  Model classes
+   carry Jackson annotations for deserialization; the parser is a thin
+   wrapper around `ObjectMapper.readValue()`.
 3. **Generator** — walks the model and produces a JSON value string.
 
 Public API accepts a schema as a `String`, `File`, or `InputStream`.
@@ -54,6 +56,12 @@ Consumers must only import from `api`, never from `internal` directly.
 Integration tests are parameterized and driven by schema files in
 `src/test/resources/schemas/`. Adding a schema file is all that's needed to add
 a test case.
+
+## Issues
+
+Issues live in `docs/issues/`. After completing work on an issue, update the
+issue file: check off acceptance criteria and revise any descriptions that
+no longer match the implementation.
 
 ## Code style
 

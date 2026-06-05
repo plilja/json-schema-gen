@@ -11,11 +11,18 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import se.plilja.jsonschemagen.internal.generator.JsonGenerator;
+import se.plilja.jsonschemagen.internal.model.Schema;
+import se.plilja.jsonschemagen.internal.parser.JsonSerializer;
+import se.plilja.jsonschemagen.internal.parser.SchemaParser;
+
 /**
  * Generates valid JSON values from a JSON Schema (Draft 7) document.
  *
- * <p>Instances are immutable. {@link #withSeed} and {@link #withPin} return a new
- * generator with the updated configuration; the original is unchanged.
+ * <p>Instances are not thread-safe. Each thread should use its own generator.
+ *
+ * <p>{@link #withSeed} and {@link #withPin} return a new generator with the
+ * updated configuration; the original is unchanged.
  *
  * <pre>{@code
  * JsonSchemaGenerator gen = JsonSchemaGenerator.of(schema);
@@ -28,11 +35,16 @@ public final class JsonSchemaGenerator {
   private final String schema;
   private final Long seed;
   private final Map<String, String> pins;
+  private final JsonGenerator generator;
+  private final Schema parsedSchema;
 
-  private JsonSchemaGenerator(String schema, Long seed, Map<String, String> pins) {
+  private JsonSchemaGenerator(
+      String schema, Schema parsedSchema, Long seed, Map<String, String> pins) {
     this.schema = schema;
+    this.parsedSchema = parsedSchema;
     this.seed = seed;
     this.pins = pins;
+    this.generator = new JsonGenerator(seed);
   }
 
   /**
@@ -44,7 +56,8 @@ public final class JsonSchemaGenerator {
     if (schema == null) {
       throw new IllegalArgumentException("schema must not be null");
     }
-    return new JsonSchemaGenerator(schema, null, Collections.emptyMap());
+    Schema parsed = SchemaParser.parse(schema);
+    return new JsonSchemaGenerator(schema, parsed, null, Collections.emptyMap());
   }
 
   /**
@@ -74,7 +87,7 @@ public final class JsonSchemaGenerator {
    * @param seed value used to initialise the random source
    */
   public JsonSchemaGenerator withSeed(long seed) {
-    return new JsonSchemaGenerator(schema, seed, pins);
+    return new JsonSchemaGenerator(schema, parsedSchema, seed, pins);
   }
 
   /**
@@ -102,14 +115,16 @@ public final class JsonSchemaGenerator {
     }
     var merged = new LinkedHashMap<>(pins);
     merged.put(jsonPath, jsonValue);
-    return new JsonSchemaGenerator(schema, seed, Collections.unmodifiableMap(merged));
+    return new JsonSchemaGenerator(
+        schema, parsedSchema, seed, Collections.unmodifiableMap(merged));
   }
 
   /**
    * Generates a valid JSON value for the configured schema.
    */
   public String generate() {
-    return "null";
+    Object generated = generator.generate(parsedSchema);
+    return JsonSerializer.serialize(generated);
   }
 
   /**

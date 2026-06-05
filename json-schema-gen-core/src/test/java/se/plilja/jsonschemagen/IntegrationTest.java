@@ -8,6 +8,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import se.plilja.jsonschemagen.api.JsonSchemaGenerator;
+
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -18,7 +20,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class IntegrationTest {
 
@@ -49,16 +51,19 @@ class IntegrationTest {
   @ParameterizedTest(name = "{0} invocation={2}")
   @MethodSource("parameters")
   void generatesValidJson(String schemaName, String schemaContent, int invocation) {
+    var gen = JsonSchemaGenerator.of(schemaContent);
+
+    // when
     String json = null;
     for (int i = 0; i < invocation; i++) {
-      // TODO 0005: replace with JsonSchemaGenerator.of(schemaContent).generate()
-      json = "\"hello\"";
+      json = gen.generate();
     }
 
+    // then
     Set<ValidationMessage> errors = FACTORY.getSchema(schemaContent)
         .validate(json, InputFormat.JSON);
-
-    assertEquals(List.of(), errors.stream().toList(),
-        schemaName + " invocation=" + invocation);
+    assertThat(errors)
+        .as("%s invocation=%d", schemaName, invocation)
+        .isEmpty();
   }
 }
