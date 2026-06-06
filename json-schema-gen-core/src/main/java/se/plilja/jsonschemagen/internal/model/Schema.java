@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = StringSchema.class, name = "string"),
         @JsonSubTypes.Type(value = IntegerSchema.class, name = "integer"),
+        @JsonSubTypes.Type(value = BooleanSchema.class, name = "boolean"),
 })
-public abstract sealed class Schema permits StringSchema, IntegerSchema {
+public abstract sealed class Schema permits StringSchema, IntegerSchema, BooleanSchema {
 }

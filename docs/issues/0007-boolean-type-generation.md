@@ -7,11 +7,11 @@ calls both `true` and `false` must be produced.
 
 ## Acceptance criteria
 
-- [ ] `{"type": "boolean"}` generates a valid JSON boolean value
-- [ ] Across N repeated calls both `true` and `false` are produced
-- [ ] Integration test validates output against the schema
-- [ ] Unit tests cover exhaustiveness in isolation
-- [ ] `mvn test` passes
+- [x] `{"type": "boolean"}` generates a valid JSON boolean value
+- [x] Across N repeated calls both `true` and `false` are produced
+- [x] Integration test validates output against the schema
+- [x] Unit tests cover exhaustiveness in isolation
+- [x] `mvn test` passes
 
 ## Blocked by
 
