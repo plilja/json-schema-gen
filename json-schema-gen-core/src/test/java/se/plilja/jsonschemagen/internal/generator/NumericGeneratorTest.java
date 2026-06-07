@@ -140,6 +140,22 @@ class NumericGeneratorTest {
     }
 
     @Test
+    void unboundedMultipleOfStaysWithinJsonSafeIntegerRange() {
+        var safeMax = (1L << 53) - 1;
+        var generator = new NumericGenerator(new Random(20260607L), NumericSchema.of(null, null, null, null, 5L));
+
+        // when
+        List<Long> values = LongStream.range(0, 1000)
+                .map(i -> generator.generate())
+                .boxed()
+                .toList();
+
+        // then
+        assertThat(values).allMatch(v -> v >= -safeMax && v <= safeMax);
+        assertThat(values).allMatch(v -> v % 5 == 0);
+    }
+
+    @Test
     void multipleOfWithBoundsCoversBoundaryMultiples() {
         var generator = new NumericGenerator(new Random(42), NumericSchema.of(-20L, 20L, null, null, 7L));
 

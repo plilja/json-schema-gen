@@ -8,6 +8,9 @@ import se.plilja.jsonschemagen.internal.model.NumericSchema;
 
 final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationPhase, Long> {
 
+    // 2^53 - 1: above this, multipleOf checks done in IEEE 754 double precision are unreliable.
+    private static final long MAX_SAFE_INTEGER = (1L << 53) - 1;
+
     private final Random random;
     private final NumericSchema schema;
 
@@ -72,7 +75,7 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         } else if (min != null) {
             return min;
         }
-        return Long.MIN_VALUE;
+        return hasMultipleOf() ? -MAX_SAFE_INTEGER : Long.MIN_VALUE;
     }
 
     private long effectiveMax() {
@@ -85,7 +88,7 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         } else if (max != null) {
             return max;
         }
-        return Long.MAX_VALUE - 1;
+        return hasMultipleOf() ? MAX_SAFE_INTEGER : Long.MAX_VALUE - 1;
     }
 
     private boolean hasLowerBound() {

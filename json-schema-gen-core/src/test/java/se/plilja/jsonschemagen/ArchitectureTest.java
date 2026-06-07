@@ -19,9 +19,11 @@ class ArchitectureTest {
                         .layer("parser").definedBy("se.plilja.jsonschemagen.internal.parser..")
                         .layer("generator").definedBy("se.plilja.jsonschemagen.internal.generator..")
                         .layer("model").definedBy("se.plilja.jsonschemagen.internal.model..")
-                        .whereLayer("parser").mayOnlyAccessLayers("model")
-                        .whereLayer("generator").mayOnlyAccessLayers("model")
-                        .whereLayer("model").mayNotAccessAnyLayer();
+                        .layer("errors").definedBy("se.plilja.jsonschemagen.errors..")
+                        .whereLayer("parser").mayOnlyAccessLayers("model", "errors")
+                        .whereLayer("generator").mayOnlyAccessLayers("model", "errors")
+                        .whereLayer("model").mayNotAccessAnyLayer()
+                        .whereLayer("errors").mayNotAccessAnyLayer();
 
         @ArchTest
         static final SliceRule noCycles = slices()

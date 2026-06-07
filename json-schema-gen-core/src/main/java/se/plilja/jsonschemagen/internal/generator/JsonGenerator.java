@@ -10,6 +10,7 @@ import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
+// TODO consider naming and javadoc. The name is confusingly close to JsonSchemaGenerator
 public final class JsonGenerator {
 
     private final PhaseGenerator<?, ?> delegate;

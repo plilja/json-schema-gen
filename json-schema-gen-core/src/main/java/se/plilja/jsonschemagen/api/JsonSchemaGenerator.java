@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.JsonGenerator;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.parser.JsonSerializer;
@@ -121,9 +121,13 @@ public final class JsonSchemaGenerator {
 
     /**
      * Generates a valid JSON value for the configured schema.
+     *
+     * @throws UnsatisfiableSchemaException if the schema is over-constrained
+     *     or the generator's random search could not find a value satisfying the
+     *     schema within its retry budget
      */
     public String generate() {
-        Object generated = generator.generate();
+        var generated = generator.generate();
         return JsonSerializer.serialize(generated);
     }
 

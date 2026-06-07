@@ -7,10 +7,21 @@ fixtures are error-prone and incomplete.
 ## Build commands
 
 ```
-mvn clean verify        # full build + tests
-mvn clean compile       # compile only
-mvn test                # run unit tests
+mvnd clean verify -Pfast # inner-loop: skips checkstyle + spotbugs (~5s warm)
+mvn clean verify         # full build incl. style/static analysis (~14s) — pre-commit gate
+mvn clean compile        # compile only
+mvn test                 # run unit tests
 ```
+
+Use `mvnd verify -Pfast` during work to keep the iteration loop tight.
+Run plain `mvn clean verify` once before declaring a task done so style
+and static-analysis gates are checked.
+
+### mvnd (Maven Daemon)
+
+`mvnd` keeps a JVM warm between Maven invocations, cutting warm-run
+wall-clock by ~40–50% vs. plain `mvn`. Install it once per machine; no
+per-repo setup needed.
 
 ## Architecture
 
@@ -49,6 +60,7 @@ exhaustiveness" means in issue acceptance criteria.
 ```
 se.plilja.jsonschemagen
 ├── api          public API — everything a consumer imports
+├── errors       Exception types (exposed public, thrown from internal)
 └── internal     implementation detail, not part of the public contract
     ├── parser   JSON → schema model
     ├── model    schema model classes
@@ -59,9 +71,10 @@ Allowed dependencies (enforced by ArchUnit — violations fail `mvn test`):
 
 ```
 api          — entry point; may access all layers
-parser       — may only access model
-generator    — may only access model
+parser       — may only access model and errors
+generator    — may only access model and errors
 model        — leaf; no dependencies on other internal packages
+errors       — leaf; no dependencies on other packages
 ```
 
 Jackson (`com.fasterxml.jackson`) is allowed only in `parser` and `model`.
@@ -83,7 +96,11 @@ no longer match the implementation.
 
 Google Java Style Guide (modified), enforced by Checkstyle (`checkstyle:check` runs on `mvn verify`).
 Use 4-space indentation, 160-char line length. Violations fail the build.
-Use `var` keyword whenever possible.
+Use the `var` keyword whenever possible, except for primitives and
+their boxed counterparts (`int`/`Integer`, `long`/`Long`,
+`double`/`Double`, etc.). Spelling out the primitive type avoids
+silent boxing — e.g. `var x = coalesce(getInt(), 0)` infers `Integer`,
+turning `x == y` into reference comparison.
 
 ## Test conventions
 

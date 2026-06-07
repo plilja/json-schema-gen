@@ -165,4 +165,21 @@ class StringGeneratorTest {
         assertThat(results).anyMatch(s -> s.length() == 5);
         assertThat(results).anyMatch(s -> s.length() == 10);
     }
+
+    @Test
+    void unboundedQuantifierPatternStaysWithinMaxLength() {
+        var schema = StringSchema.of(3, 12, "^[a-z]+$");
+        var generator = new StringGenerator(new Random(20260607L), schema);
+
+        // when
+        var results = IntStream.range(0, 5000)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(s -> {
+            assertThat(s).matches("^[a-z]+$");
+            assertThat(s.length()).isBetween(3, 12);
+        });
+    }
 }
