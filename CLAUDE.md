@@ -83,6 +83,7 @@ no longer match the implementation.
 
 Google Java Style Guide (modified), enforced by Checkstyle (`checkstyle:check` runs on `mvn verify`).
 Use 4-space indentation, 160-char line length. Violations fail the build.
+Use `var` keyword whenever possible.
 
 ## Test conventions
 

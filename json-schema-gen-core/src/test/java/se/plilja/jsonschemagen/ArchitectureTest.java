@@ -1,13 +1,13 @@
 package se.plilja.jsonschemagen;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
+
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.dependencies.SliceRule;
-
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
-import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 @AnalyzeClasses(packages = "se.plilja.jsonschemagen")
 class ArchitectureTest {
@@ -35,6 +35,8 @@ class ArchitectureTest {
                                         "se.plilja.jsonschemagen.internal.parser..",
                                         "se.plilja.jsonschemagen.internal.model.."
                         )
+                        .and().haveSimpleNameNotEndingWith("Test")
+                        .and().doNotHaveSimpleName("TestParser")
                         .should().dependOnClassesThat().resideInAPackage("com.fasterxml.jackson..");
 
         @ArchTest
