@@ -1,17 +1,18 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
-import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 class StringGeneratorTest {
 
+
     @Test
     void firstCallProducesEmptyString() {
-        var generator = new StringGenerator(new Random(42), new StringSchema());
+        var generator = new StringGenerator(withSeed(42),new StringSchema());
 
         // when
         String result = generator.generate();
@@ -22,7 +23,7 @@ class StringGeneratorTest {
 
     @Test
     void subsequentCallsProduceNonEmptyStrings() {
-        var generator = new StringGenerator(new Random(42), new StringSchema());
+        var generator = new StringGenerator(withSeed(42),new StringSchema());
         generator.generate();
 
         // when
@@ -37,7 +38,7 @@ class StringGeneratorTest {
     @Test
     void minLengthRespected() {
         var schema = StringSchema.of(5, null, null);
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -51,7 +52,7 @@ class StringGeneratorTest {
     @Test
     void maxLengthRespected() {
         var schema = StringSchema.of(null, 8, null);
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -65,7 +66,7 @@ class StringGeneratorTest {
     @Test
     void emitsBoundaryLengthMinLength() {
         var schema = StringSchema.of(3, null, null);
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         String first = generator.generate();
@@ -77,7 +78,7 @@ class StringGeneratorTest {
     @Test
     void emitsBoundaryLengthMaxLength() {
         var schema = StringSchema.of(null, 10, null);
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         String first = generator.generate();
@@ -89,7 +90,7 @@ class StringGeneratorTest {
     @Test
     void emptyStringSkippedWhenMinLengthPositive() {
         var schema = StringSchema.of(2, null, null);
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -103,7 +104,7 @@ class StringGeneratorTest {
     @Test
     void patternConstraintProducesMatchingStrings() {
         var schema = StringSchema.of(null, null, "^[A-Z]{3}-\\d{4}$");
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -117,7 +118,7 @@ class StringGeneratorTest {
     @Test
     void bothMinAndMaxLengthRespected() {
         var schema = StringSchema.of(3, 7, null);
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -136,7 +137,7 @@ class StringGeneratorTest {
     @Test
     void patternWithLengthConstraintsRespectsAll() {
         var schema = StringSchema.of(5, 10, "^[a-z]+$");
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -154,7 +155,7 @@ class StringGeneratorTest {
     @Test
     void patternWithLengthConstraintsEmitsBoundaryLengths() {
         var schema = StringSchema.of(5, 10, "^[a-z]+$");
-        var generator = new StringGenerator(new Random(42), schema);
+        var generator = new StringGenerator(withSeed(42),schema);
 
         // when
         var results = IntStream.range(0, 20)
@@ -169,7 +170,7 @@ class StringGeneratorTest {
     @Test
     void unboundedQuantifierPatternStaysWithinMaxLength() {
         var schema = StringSchema.of(3, 12, "^[a-z]+$");
-        var generator = new StringGenerator(new Random(20260607L), schema);
+        var generator = new StringGenerator(withSeed(20260607L),schema);
 
         // when
         var results = IntStream.range(0, 5000)

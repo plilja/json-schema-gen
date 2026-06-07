@@ -2,19 +2,19 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
-import java.util.Random;
-
 final class BooleanGenerator extends PhaseGenerator<BooleanGenerator.GenerationPhase, Boolean> {
-
-    private final Random random;
 
     enum GenerationPhase {
         FALSE, TRUE, RANDOM
     }
 
-    BooleanGenerator(Random random) {
-        super(GenerationPhase.class);
-        this.random = random;
+    BooleanGenerator(GeneratorContext context) {
+        super(GenerationPhase.class, context);
+    }
+
+    @Override
+    protected GenerationPhase minimalPhase() {
+        return GenerationPhase.FALSE;
     }
 
     @Override
@@ -22,7 +22,7 @@ final class BooleanGenerator extends PhaseGenerator<BooleanGenerator.GenerationP
         return result(switch (phase) {
             case FALSE -> false;
             case TRUE -> true;
-            case RANDOM -> random.nextBoolean();
+            case RANDOM -> context.random().nextBoolean();
         });
     }
 }

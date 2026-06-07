@@ -3,11 +3,9 @@ package se.plilja.jsonschemagen.internal.generator;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
 import java.util.List;
-import java.util.Random;
 
 final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, Object> {
 
-    private final Random random;
     private final List<Object> values;
     private int index = 0;
 
@@ -15,10 +13,14 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
         EXHAUSTIVE, RANDOM
     }
 
-    EnumGenerator(Random random, List<Object> values) {
-        super(GenerationPhase.class);
-        this.random = random;
+    EnumGenerator(GeneratorContext context, List<Object> values) {
+        super(GenerationPhase.class, context);
         this.values = values;
+    }
+
+    @Override
+    protected GenerationPhase minimalPhase() {
+        return GenerationPhase.EXHAUSTIVE;
     }
 
     @Override
@@ -36,7 +38,7 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
         return result(switch (phase) {
             case EXHAUSTIVE -> values.get(index);
-            case RANDOM -> values.get(random.nextInt(values.size()));
+            case RANDOM -> values.get(context.random().nextInt(values.size()));
         });
     }
 }

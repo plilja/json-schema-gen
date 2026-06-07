@@ -7,19 +7,19 @@ import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
+import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 class ArrayGeneratorTest {
 
     @Test
     void minItemsIsAlwaysRespected() {
-        var schema = TestParser.parse("""
+        var generator = arrayGenerator("""
                 {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 3
                 }
-                """, ArraySchema.class);
-        var generator = new ArrayGenerator(new Random(42), schema);
+                """);
 
         // when
         var results = IntStream.range(0, 50)
@@ -32,15 +32,14 @@ class ArrayGeneratorTest {
 
     @Test
     void maxItemsIsAlwaysRespected() {
-        var schema = TestParser.parse("""
+        var generator = arrayGenerator("""
                 {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 1,
                     "maxItems": 4
                 }
-                """, ArraySchema.class);
-        var generator = new ArrayGenerator(new Random(42), schema);
+                """);
 
         // when
         var results = IntStream.range(0, 50)
@@ -53,15 +52,14 @@ class ArrayGeneratorTest {
 
     @Test
     void boundaryLengthsAreCoveredAcrossRepeatedCalls() {
-        var schema = TestParser.parse("""
+        var generator = arrayGenerator("""
                 {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 2,
                     "maxItems": 5
                 }
-                """, ArraySchema.class);
-        var generator = new ArrayGenerator(new Random(42), schema);
+                """);
 
         // when
         var lengths = IntStream.range(0, 20)
@@ -76,14 +74,13 @@ class ArrayGeneratorTest {
 
     @Test
     void emptyArrayIsCoveredWhenMinItemsIsZero() {
-        var schema = TestParser.parse("""
+        var generator = arrayGenerator("""
                 {
                     "type": "array",
                     "items": {"type": "string"},
                     "maxItems": 5
                 }
-                """, ArraySchema.class);
-        var generator = new ArrayGenerator(new Random(42), schema);
+                """);
 
         // when
         var results = IntStream.range(0, 20)
@@ -96,14 +93,13 @@ class ArrayGeneratorTest {
 
     @Test
     void elementsConformToItemsSubSchema() {
-        var schema = TestParser.parse("""
+        var generator = arrayGenerator("""
                 {
                     "type": "array",
                     "items": {"type": "string"},
                     "minItems": 2
                 }
-                """, ArraySchema.class);
-        var generator = new ArrayGenerator(new Random(42), schema);
+                """);
 
         // when
         var results = IntStream.range(0, 20)
@@ -113,5 +109,10 @@ class ArrayGeneratorTest {
         // then
         assertThat(results).allSatisfy(arr -> assertThat(arr).isNotEmpty());
         assertThat(results).allSatisfy(arr -> assertThat(arr).allMatch(e -> e instanceof String));
+    }
+
+    private static ArrayGenerator arrayGenerator(String json) {
+        var document = SchemaParser.parse(json);
+        return new ArrayGenerator(new GeneratorContext(document, new Random(42)), (ArraySchema) document.getRoot());
     }
 }

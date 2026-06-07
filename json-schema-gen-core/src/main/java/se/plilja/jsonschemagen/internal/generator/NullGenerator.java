@@ -8,8 +8,13 @@ final class NullGenerator extends PhaseGenerator<NullGenerator.GenerationPhase, 
         NULL
     }
 
-    NullGenerator() {
-        super(GenerationPhase.class);
+    NullGenerator(GeneratorContext context) {
+        super(GenerationPhase.class, context);
+    }
+
+    @Override
+    protected GenerationPhase minimalPhase() {
+        return GenerationPhase.NULL;
     }
 
     @Override

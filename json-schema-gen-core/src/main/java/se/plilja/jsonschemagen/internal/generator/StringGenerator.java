@@ -7,7 +7,6 @@ import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
 import com.github.curiousoddman.rgxgen.RgxGen;
 import com.github.curiousoddman.rgxgen.config.RgxGenOption;
 import com.github.curiousoddman.rgxgen.config.RgxGenProperties;
-import java.util.Random;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
@@ -17,7 +16,6 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
     private static final int PATTERN_RETRY_BUDGET = 100;
 
-    private final Random random;
     private final StringSchema schema;
     private final RgxGen rgxGen;
 
@@ -25,11 +23,15 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
         MIN_LENGTH, MAX_LENGTH, EMPTY, RANDOM
     }
 
-    StringGenerator(Random random, StringSchema schema) {
-        super(GenerationPhase.class);
-        this.random = random;
+    StringGenerator(GeneratorContext context, StringSchema schema) {
+        super(GenerationPhase.class, context);
         this.schema = schema;
         this.rgxGen = schema.getPattern() != null ? buildRgxGen(schema) : null;
+    }
+
+    @Override
+    protected GenerationPhase minimalPhase() {
+        return GenerationPhase.RANDOM;
     }
 
     private static RgxGen buildRgxGen(StringSchema schema) {
@@ -68,7 +70,7 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
 
     private GenerationResult<String> generateFromPatternWithLength(int targetLength) {
         for (int attempt = 0; attempt < PATTERN_RETRY_BUDGET; attempt++) {
-            var candidate = rgxGen.generate(random);
+            var candidate = rgxGen.generate(context.random());
             if (candidate.length() == targetLength) {
                 return result(candidate);
             }
@@ -80,7 +82,7 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
         int min = coalesce(schema.getMinLength(), 0);
         int max = coalesce(schema.getMaxLength(), Integer.MAX_VALUE);
         for (int attempt = 0; attempt < PATTERN_RETRY_BUDGET; attempt++) {
-            var candidate = rgxGen.generate(random);
+            var candidate = rgxGen.generate(context.random());
             if (candidate.length() >= min && candidate.length() <= max) {
                 return candidate;
             }
@@ -93,14 +95,14 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     private String randomString() {
         int min = coalesce(schema.getMinLength(), 0);
         int max = coalesce(schema.getMaxLength(), min + 20);
-        int length = min == max ? min : random.nextInt(min, max + 1);
+        int length = min == max ? min : context.random().nextInt(min, max + 1);
         return randomStringOfLength(length);
     }
 
     private String randomStringOfLength(int length) {
         var sb = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
-            sb.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
+            sb.append(ALPHABET.charAt(context.random().nextInt(ALPHABET.length())));
         }
         return sb.toString();
     }

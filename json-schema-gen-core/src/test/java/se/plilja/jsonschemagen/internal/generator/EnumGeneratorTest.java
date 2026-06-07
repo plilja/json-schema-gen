@@ -1,18 +1,17 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class EnumGeneratorTest {
 
     @Test
     void exhaustsAllValuesInOrder() {
-        var generator = new EnumGenerator(new Random(42), List.of("red", "green", "blue"));
+        var generator = new EnumGenerator(withSeed(42),List.of("red", "green", "blue"));
 
         // when
         var first = generator.generate();
@@ -27,7 +26,7 @@ class EnumGeneratorTest {
 
     @Test
     void exhaustsMixedTypeValuesInOrder() {
-        var generator = new EnumGenerator(new Random(42), Arrays.asList("admin", 1, true, null));
+        var generator = new EnumGenerator(withSeed(42),Arrays.asList("admin", 1, true, null));
 
         // when
         var first = generator.generate();
@@ -44,7 +43,7 @@ class EnumGeneratorTest {
 
     @Test
     void producesRandomValuesAfterExhausting() {
-        var generator = new EnumGenerator(new Random(42), List.of("red", "green", "blue"));
+        var generator = new EnumGenerator(withSeed(42),List.of("red", "green", "blue"));
         // exhaust all values
         generator.generate();
         generator.generate();

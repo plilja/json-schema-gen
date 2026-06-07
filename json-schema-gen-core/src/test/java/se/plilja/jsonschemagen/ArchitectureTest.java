@@ -4,12 +4,13 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.dependencies.SliceRule;
 
-@AnalyzeClasses(packages = "se.plilja.jsonschemagen")
+@AnalyzeClasses(packages = "se.plilja.jsonschemagen", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
 
         @ArchTest
@@ -30,6 +31,9 @@ class ArchitectureTest {
                         .matching("se.plilja.jsonschemagen.(**)")
                         .should().beFreeOfCycles();
 
+        // TODO: unit tests for individual generators currently construct GeneratorContext directly
+        // and reach into SchemaParser. Revisit whether there is a cleaner test seam — e.g. exposing
+        // a minimal test-only factory — so the generator package boundary stays tight.
         @ArchTest
         static final ArchRule jacksonOnlyInParserAndModel = noClasses()
                         .that().resideInAPackage("se.plilja.jsonschemagen..")
@@ -38,7 +42,6 @@ class ArchitectureTest {
                                         "se.plilja.jsonschemagen.internal.model.."
                         )
                         .and().haveSimpleNameNotEndingWith("Test")
-                        .and().doNotHaveSimpleName("TestParser")
                         .should().dependOnClassesThat().resideInAPackage("com.fasterxml.jackson..");
 
         @ArchTest

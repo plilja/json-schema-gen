@@ -7,12 +7,13 @@ import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
+import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 class ObjectGeneratorTest {
 
     @Test
     void generatesObjectWithRequiredStringField() {
-        var schema = TestParser.parse("""
+        var generator = objectGenerator("""
                 {
                     "type": "object",
                     "properties": {
@@ -20,8 +21,7 @@ class ObjectGeneratorTest {
                     },
                     "required": ["name"]
                 }
-                """, ObjectSchema.class);
-        var generator = new ObjectGenerator(new Random(42), schema);
+                """);
 
         // when
         var result = generator.generate();
@@ -33,7 +33,7 @@ class ObjectGeneratorTest {
 
     @Test
     void requiredFieldsAlwaysPresent() {
-        var schema = TestParser.parse("""
+        var generator = objectGenerator("""
                 {
                     "type": "object",
                     "properties": {
@@ -42,8 +42,7 @@ class ObjectGeneratorTest {
                     },
                     "required": ["name"]
                 }
-                """, ObjectSchema.class);
-        var generator = new ObjectGenerator(new Random(42), schema);
+                """);
 
         // when
         var results = IntStream.range(0, 20)
@@ -56,7 +55,7 @@ class ObjectGeneratorTest {
 
     @Test
     void optionalFieldsAppearBothPresentAndAbsent() {
-        var schema = TestParser.parse("""
+        var generator = objectGenerator("""
                 {
                     "type": "object",
                     "properties": {
@@ -65,8 +64,7 @@ class ObjectGeneratorTest {
                     },
                     "required": ["name"]
                 }
-                """, ObjectSchema.class);
-        var generator = new ObjectGenerator(new Random(42), schema);
+                """);
 
         // when
         var results = IntStream.range(0, 2)
@@ -80,13 +78,12 @@ class ObjectGeneratorTest {
 
     @Test
     void emptyPropertiesGeneratesEmptyObject() {
-        var schema = TestParser.parse("""
+        var generator = objectGenerator("""
                 {
                     "type": "object",
                     "properties": {}
                 }
-                """, ObjectSchema.class);
-        var generator = new ObjectGenerator(new Random(42), schema);
+                """);
 
         // when
         var result = generator.generate();
@@ -97,10 +94,9 @@ class ObjectGeneratorTest {
 
     @Test
     void absentPropertiesAndRequiredGeneratesEmptyObject() {
-        var schema = TestParser.parse("""
+        var generator = objectGenerator("""
                 {"type": "object"}
-                """, ObjectSchema.class);
-        var generator = new ObjectGenerator(new Random(42), schema);
+                """);
 
         // when
         var result = generator.generate();
@@ -112,7 +108,7 @@ class ObjectGeneratorTest {
     @Test
     @SuppressWarnings("unchecked")
     void nestedObjectsAreGeneratedRecursively() {
-        var schema = TestParser.parse("""
+        var generator = objectGenerator("""
                 {
                     "type": "object",
                     "properties": {
@@ -126,8 +122,7 @@ class ObjectGeneratorTest {
                     },
                     "required": ["address"]
                 }
-                """, ObjectSchema.class);
-        var generator = new ObjectGenerator(new Random(42), schema);
+                """);
 
         // when
         var result = generator.generate();
@@ -137,5 +132,10 @@ class ObjectGeneratorTest {
         var address = (Map<String, Object>) result.get("address");
         assertThat(address).containsKey("street");
         assertThat(address.get("street")).isInstanceOf(String.class);
+    }
+
+    private static ObjectGenerator objectGenerator(String json) {
+        var document = SchemaParser.parse(json);
+        return new ObjectGenerator(new GeneratorContext(document, new Random(42)), (ObjectSchema) document.getRoot());
     }
 }

@@ -1,8 +1,8 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
-import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.internal.model.BooleanSchema;
@@ -11,7 +11,7 @@ class BooleanGeneratorTest {
 
     @Test
     void firstCallProducesFalse() {
-        var generator = new BooleanGenerator(new Random(42));
+        var generator = new BooleanGenerator(withSeed(42));
 
         // when
         boolean result = generator.generate();
@@ -22,7 +22,7 @@ class BooleanGeneratorTest {
 
     @Test
     void secondCallProducesTrue() {
-        var generator = new BooleanGenerator(new Random(42));
+        var generator = new BooleanGenerator(withSeed(42));
         generator.generate();
 
         // when
@@ -34,7 +34,7 @@ class BooleanGeneratorTest {
 
     @Test
     void repeatedCallsProduceBothValues() {
-        var generator = new BooleanGenerator(new Random(42));
+        var generator = new BooleanGenerator(withSeed(42));
 
         // when
         var values = IntStream.range(0, 20)

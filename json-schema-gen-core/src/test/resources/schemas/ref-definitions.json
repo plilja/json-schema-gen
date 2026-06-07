@@ -1,0 +1,19 @@
+{
+    "type": "object",
+    "properties": {
+        "billing": {"$ref": "#/definitions/Address"},
+        "shipping": {"$ref": "#/definitions/Address"}
+    },
+    "required": ["billing"],
+    "definitions": {
+        "Address": {
+            "type": "object",
+            "properties": {
+                "street": {"type": "string"},
+                "city": {"type": "string"},
+                "zip": {"type": "integer"}
+            },
+            "required": ["street", "city"]
+        }
+    }
+}

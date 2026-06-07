@@ -22,4 +22,7 @@ public abstract sealed class Schema permits StringSchema, NumericSchema, Boolean
 
     @JsonProperty("enum")
     private List<Object> enumValues;
+
+    @JsonProperty("$ref")
+    private String ref;
 }

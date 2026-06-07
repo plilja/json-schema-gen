@@ -12,7 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.JsonGenerator;
-import se.plilja.jsonschemagen.internal.model.Schema;
+import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 import se.plilja.jsonschemagen.internal.parser.JsonSerializer;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
@@ -36,15 +36,15 @@ public final class JsonSchemaGenerator {
     private final Long seed;
     private final Map<String, String> pins;
     private final JsonGenerator generator;
-    private final Schema parsedSchema;
+    private final SchemaDocument document;
 
     private JsonSchemaGenerator(
-            String schema, Schema parsedSchema, Long seed, Map<String, String> pins) {
+            String schema, SchemaDocument document, Long seed, Map<String, String> pins) {
         this.schema = schema;
-        this.parsedSchema = parsedSchema;
+        this.document = document;
         this.seed = seed;
         this.pins = pins;
-        this.generator = new JsonGenerator(seed, parsedSchema);
+        this.generator = new JsonGenerator(seed, document);
     }
 
     /**
@@ -56,8 +56,8 @@ public final class JsonSchemaGenerator {
         if (schema == null) {
             throw new IllegalArgumentException("schema must not be null");
         }
-        Schema parsed = SchemaParser.parse(schema);
-        return new JsonSchemaGenerator(schema, parsed, null, Collections.emptyMap());
+        var document = SchemaParser.parse(schema);
+        return new JsonSchemaGenerator(schema, document, null, Collections.emptyMap());
     }
 
     /**
@@ -87,7 +87,7 @@ public final class JsonSchemaGenerator {
      * @param seed value used to initialise the random source
      */
     public JsonSchemaGenerator withSeed(long seed) {
-        return new JsonSchemaGenerator(schema, parsedSchema, seed, pins);
+        return new JsonSchemaGenerator(schema, document, seed, pins);
     }
 
     /**
@@ -116,7 +116,7 @@ public final class JsonSchemaGenerator {
         var merged = new LinkedHashMap<>(pins);
         merged.put(jsonPath, jsonValue);
         return new JsonSchemaGenerator(
-                schema, parsedSchema, seed, Collections.unmodifiableMap(merged));
+                schema, document, seed, Collections.unmodifiableMap(merged));
     }
 
     /**

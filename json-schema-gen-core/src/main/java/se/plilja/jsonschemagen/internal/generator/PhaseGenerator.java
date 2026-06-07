@@ -1,17 +1,27 @@
 package se.plilja.jsonschemagen.internal.generator;
 
+// TODO deserves javadoc, add later
 abstract class PhaseGenerator<E extends Enum<E>, R> {
 
+    protected final GeneratorContext context;
     private E phase;
 
-    PhaseGenerator(Class<E> phaseClass) {
+    PhaseGenerator(Class<E> phaseClass, GeneratorContext context) {
+        this.context = context;
         this.phase = GenerationPhaseUtil.first(phaseClass);
     }
 
     R generate() {
+        if (context.isMinimal()) {
+            var result = generatePhase(minimalPhase());
+            if (result instanceof GenerationResult.Present<R> present) {
+                return present.value();
+            }
+            throw new IllegalStateException("Minimal phase must always produce a value");
+        }
         while (true) {
-            GenerationResult<R> result = generatePhase(phase);
-            E prev = phase;
+            var result = generatePhase(phase);
+            var prev = phase;
             phase = advanceToNext(phase);
             if (result instanceof GenerationResult.Present<R> present) {
                 return present.value();
@@ -26,6 +36,12 @@ abstract class PhaseGenerator<E extends Enum<E>, R> {
     protected E advanceToNext(E current) {
         return GenerationPhaseUtil.advanceToNext(current);
     }
+
+    /**
+     * Returns the phase that would generate the smallest possible result satisfying
+     * the constraints. Please note that this phase should not be skippable.
+     */
+    protected abstract E minimalPhase();
 
     protected abstract GenerationResult<R> generatePhase(E phase);
 }

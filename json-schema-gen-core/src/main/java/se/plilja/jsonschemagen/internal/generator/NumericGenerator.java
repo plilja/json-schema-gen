@@ -3,7 +3,6 @@ package se.plilja.jsonschemagen.internal.generator;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
 
-import java.util.Random;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 
 final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationPhase, Long> {
@@ -11,7 +10,6 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
     // 2^53 - 1: above this, multipleOf checks done in IEEE 754 double precision are unreliable.
     private static final long MAX_SAFE_INTEGER = (1L << 53) - 1;
 
-    private final Random random;
     private final NumericSchema schema;
 
     enum GenerationPhase {
@@ -23,10 +21,14 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         RANDOM
     }
 
-    NumericGenerator(Random random, NumericSchema schema) {
-        super(GenerationPhase.class);
-        this.random = random;
+    NumericGenerator(GeneratorContext context, NumericSchema schema) {
+        super(GenerationPhase.class, context);
         this.schema = schema;
+    }
+
+    @Override
+    protected GenerationPhase minimalPhase() {
+        return GenerationPhase.RANDOM;
     }
 
     @Override
@@ -137,11 +139,11 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         long lowestMultiple = snapUp(effectiveMin());
         long highestMultiple = snapDown(effectiveMax());
         if (!hasMultipleOf()) {
-            return random.nextLong(lowestMultiple, highestMultiple + 1);
+            return context.random().nextLong(lowestMultiple, highestMultiple + 1);
         }
         long m = schema.getMultipleOf();
         long lowestIndex = lowestMultiple / m;
         long highestIndex = highestMultiple / m;
-        return random.nextLong(lowestIndex, highestIndex + 1) * m;
+        return context.random().nextLong(lowestIndex, highestIndex + 1) * m;
     }
 }
