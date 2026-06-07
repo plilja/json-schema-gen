@@ -7,13 +7,13 @@ Implement generation for `{"type": "array"}` schemas, respecting
 
 ## Acceptance criteria
 
-- [ ] `{"type": "array"}` generates a valid JSON array
-- [ ] `minItems` and `maxItems` constraints are respected
-- [ ] Each element is generated according to the `items` sub-schema
-- [ ] Boundary values for array length are covered across repeated calls
-- [ ] Integration tests validate output against the schema
-- [ ] Unit tests cover array generation in isolation
-- [ ] `mvn test` passes
+- [x] `{"type": "array"}` generates a valid JSON array
+- [x] `minItems` and `maxItems` constraints are respected
+- [x] Each element is generated according to the `items` sub-schema
+- [x] Boundary values for array length are covered across repeated calls
+- [x] Integration tests validate output against the schema
+- [x] Unit tests cover array generation in isolation
+- [x] `mvn test` passes
 
 ## Blocked by
 

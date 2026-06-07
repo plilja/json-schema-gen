@@ -1,6 +1,7 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import java.util.Random;
+import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.BooleanSchema;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
@@ -27,6 +28,7 @@ public final class JsonGenerator {
                 case BooleanSchema ignored -> new BooleanGenerator(random);
                 case NullSchema ignored -> new NullGenerator();
                 case ObjectSchema s -> new ObjectGenerator(random, s);
+                case ArraySchema s -> new ArrayGenerator(random, s);
                 case UntypedSchema ignored -> throw new IllegalArgumentException("Schema has no type and no enum");
             };
         }

@@ -41,7 +41,7 @@ class IntegrationTest {
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
-                        return IntStream.range(1, 21)
+                        return IntStream.range(1, 201)
                                 .mapToObj(i -> Arguments.of(name, content, i));
                     })
                     .toList();
