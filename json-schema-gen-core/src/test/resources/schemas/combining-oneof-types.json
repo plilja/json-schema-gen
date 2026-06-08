@@ -1,0 +1,6 @@
+{
+    "oneOf": [
+        {"type": "string"},
+        {"type": "integer"}
+    ]
+}

@@ -7,13 +7,13 @@ Extend string generation to respect `minLength`, `maxLength`, and
 
 ## Acceptance criteria
 
-- [ ] `minLength` and `maxLength` are respected
-- [ ] `pattern` (regex) constraint produces a matching string
-- [ ] Boundary values for length (minLength, maxLength) are covered
+- [x] `minLength` and `maxLength` are respected
+- [x] `pattern` (regex) constraint produces a matching string
+- [x] Boundary values for length (minLength, maxLength) are covered
       across repeated calls
-- [ ] Integration tests validate output against constrained schemas
-- [ ] Unit tests cover each constraint in isolation
-- [ ] `mvn test` passes
+- [x] Integration tests validate output against constrained schemas
+- [x] Unit tests cover each constraint in isolation
+- [x] `mvn test` passes
 
 ## Blocked by
 

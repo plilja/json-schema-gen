@@ -25,4 +25,6 @@ public abstract sealed class Schema permits StringSchema, NumericSchema, Boolean
 
     @JsonProperty("$ref")
     private String ref;
+
+    private List<Schema> oneOf;
 }
