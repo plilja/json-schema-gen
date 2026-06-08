@@ -10,4 +10,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class UntypedSchema extends Schema {
+
+    @Override
+    public Schema copyTypeSpecific() {
+        return new UntypedSchema();
+    }
 }

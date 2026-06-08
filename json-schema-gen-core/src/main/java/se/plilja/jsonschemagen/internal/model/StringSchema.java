@@ -14,4 +14,9 @@ public final class StringSchema extends Schema {
     private Integer minLength;
     private Integer maxLength;
     private String pattern;
+
+    @Override
+    public Schema copyTypeSpecific() {
+        return StringSchema.of(minLength, maxLength, pattern);
+    }
 }

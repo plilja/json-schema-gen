@@ -27,4 +27,14 @@ public abstract sealed class Schema permits StringSchema, NumericSchema, Boolean
     private String ref;
 
     private List<Schema> oneOf;
+
+    private List<Schema> allOf;
+
+    public abstract Schema copyTypeSpecific();
+
+    public final Schema withEnumValues(List<Object> newEnumValues) {
+        var clone = copyTypeSpecific();
+        clone.enumValues = newEnumValues;
+        return clone;
+    }
 }

@@ -16,4 +16,9 @@ public final class NumericSchema extends Schema {
     private Long exclusiveMinimum;
     private Long exclusiveMaximum;
     private Long multipleOf;
+
+    @Override
+    public Schema copyTypeSpecific() {
+        return NumericSchema.of(minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf);
+    }
 }

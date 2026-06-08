@@ -6,4 +6,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class NullSchema extends Schema {
+
+    @Override
+    public Schema copyTypeSpecific() {
+        return new NullSchema();
+    }
 }

@@ -39,6 +39,9 @@ public final class JsonGenerator {
         if (schema.getOneOf() != null) {
             return new OneOfGenerator(context, schema.getOneOf());
         }
+        if (schema.getAllOf() != null) {
+            return new AllOfGenerator(context, schema);
+        }
         return switch (schema) {
             case StringSchema s -> new StringGenerator(context, s);
             case NumericSchema s -> new NumericGenerator(context, s);

@@ -1,0 +1,6 @@
+{
+    "allOf": [
+        {"type": "integer", "minimum": 10},
+        {"type": "integer", "maximum": 20, "multipleOf": 2}
+    ]
+}

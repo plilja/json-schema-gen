@@ -30,4 +30,9 @@ public final class ObjectSchema extends Schema {
                 .filter(name -> !required.contains(name))
                 .toList();
     }
+
+    @Override
+    public Schema copyTypeSpecific() {
+        return ObjectSchema.of(properties, required);
+    }
 }
