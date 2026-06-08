@@ -1,13 +1,13 @@
 package se.plilja.jsonschemagen.internal.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
+@SuperBuilder(toBuilder = true)
 @NoArgsConstructor
-@AllArgsConstructor(staticName = "of")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class NumericSchema extends Schema {
 
@@ -16,9 +16,4 @@ public final class NumericSchema extends Schema {
     private Long exclusiveMinimum;
     private Long exclusiveMaximum;
     private Long multipleOf;
-
-    @Override
-    public Schema copyTypeSpecific() {
-        return NumericSchema.of(minimum, maximum, exclusiveMinimum, exclusiveMaximum, multipleOf);
-    }
 }

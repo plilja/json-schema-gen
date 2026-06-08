@@ -5,9 +5,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.List;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
+@SuperBuilder(toBuilder = true)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = UntypedSchema.class)
 @JsonSubTypes({
@@ -30,11 +35,5 @@ public abstract sealed class Schema permits StringSchema, NumericSchema, Boolean
 
     private List<Schema> allOf;
 
-    public abstract Schema copyTypeSpecific();
-
-    public final Schema withEnumValues(List<Object> newEnumValues) {
-        var clone = copyTypeSpecific();
-        clone.enumValues = newEnumValues;
-        return clone;
-    }
+    public abstract SchemaBuilder<?, ?> toBuilder();
 }

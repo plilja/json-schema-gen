@@ -35,25 +35,27 @@ final class SchemaMerger {
 
         Schema merged;
         if (b instanceof UntypedSchema) {
-            merged = a.copyTypeSpecific();
+            merged = a.toBuilder().build();
         } else if (a instanceof UntypedSchema) {
-            merged = b.copyTypeSpecific();
+            merged = b.toBuilder().build();
         } else if (a instanceof StringSchema sa && b instanceof StringSchema sb) {
             if (sa.getPattern() != null && sb.getPattern() != null) {
                 throw new IllegalArgumentException(
                         "Cannot merge allOf branches with conflicting pattern constraints");
             }
-            merged = StringSchema.of(
-                    maxNullable(sa.getMinLength(), sb.getMinLength()),
-                    minNullable(sa.getMaxLength(), sb.getMaxLength()),
-                    coalesce(sa.getPattern(), sb.getPattern()));
+            merged = StringSchema.builder()
+                    .minLength(maxNullable(sa.getMinLength(), sb.getMinLength()))
+                    .maxLength(minNullable(sa.getMaxLength(), sb.getMaxLength()))
+                    .pattern(coalesce(sa.getPattern(), sb.getPattern()))
+                    .build();
         } else if (a instanceof NumericSchema na && b instanceof NumericSchema nb) {
-            merged = NumericSchema.of(
-                    maxNullable(na.getMinimum(), nb.getMinimum()),
-                    minNullable(na.getMaximum(), nb.getMaximum()),
-                    maxNullable(na.getExclusiveMinimum(), nb.getExclusiveMinimum()),
-                    minNullable(na.getExclusiveMaximum(), nb.getExclusiveMaximum()),
-                    MathUtil.lcmNullable(na.getMultipleOf(), nb.getMultipleOf()));
+            merged = NumericSchema.builder()
+                    .minimum(maxNullable(na.getMinimum(), nb.getMinimum()))
+                    .maximum(minNullable(na.getMaximum(), nb.getMaximum()))
+                    .exclusiveMinimum(maxNullable(na.getExclusiveMinimum(), nb.getExclusiveMinimum()))
+                    .exclusiveMaximum(minNullable(na.getExclusiveMaximum(), nb.getExclusiveMaximum()))
+                    .multipleOf(MathUtil.lcmNullable(na.getMultipleOf(), nb.getMultipleOf()))
+                    .build();
         } else if (a instanceof ObjectSchema oa && b instanceof ObjectSchema ob) {
             var properties = new LinkedHashMap<>(oa.getProperties());
             for (var entry : ob.getProperties().entrySet()) {
@@ -62,7 +64,10 @@ final class SchemaMerger {
             var required = Stream.concat(oa.getRequired().stream(), ob.getRequired().stream())
                     .distinct()
                     .toList();
-            merged = ObjectSchema.of(properties, required);
+            merged = ObjectSchema.builder()
+                    .properties(properties)
+                    .required(required)
+                    .build();
         } else if (a instanceof ArraySchema aa && b instanceof ArraySchema ab) {
             Schema items;
             if (aa.getItems() != null && ab.getItems() != null) {
@@ -70,16 +75,20 @@ final class SchemaMerger {
             } else {
                 items = coalesce(aa.getItems(), ab.getItems());
             }
-            merged = ArraySchema.of(items,
-                    maxNullable(aa.getMinItems(), ab.getMinItems()),
-                    minNullable(aa.getMaxItems(), ab.getMaxItems()));
+            merged = ArraySchema.builder()
+                    .items(items)
+                    .minItems(maxNullable(aa.getMinItems(), ab.getMinItems()))
+                    .maxItems(minNullable(aa.getMaxItems(), ab.getMaxItems()))
+                    .build();
         } else {
             throw new IllegalArgumentException(
                     "Cannot merge schemas of types " + a.getClass().getSimpleName()
                             + " and " + b.getClass().getSimpleName());
         }
 
-        return merged.withEnumValues(mergeEnumValues(a.getEnumValues(), b.getEnumValues()));
+        return merged.toBuilder()
+                .enumValues(mergeEnumValues(a.getEnumValues(), b.getEnumValues()))
+                .build();
     }
 
     private static void rejectUnsupportedComposition(Schema a, Schema b) {

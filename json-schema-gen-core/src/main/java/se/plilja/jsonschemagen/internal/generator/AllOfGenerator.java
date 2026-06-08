@@ -19,7 +19,7 @@ final class AllOfGenerator extends PhaseGenerator<AllOfGenerator.GenerationPhase
             throw new IllegalArgumentException("allOf must contain at least one sub-schema");
         }
         var branches = new ArrayList<>(parent.getAllOf());
-        branches.add(parent.copyTypeSpecific());
+        branches.add(parent.toBuilder().allOf(null).build());
         this.merged = SchemaMerger.merge(branches);
     }
 

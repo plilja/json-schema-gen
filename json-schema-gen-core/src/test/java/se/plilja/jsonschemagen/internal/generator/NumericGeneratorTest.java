@@ -40,7 +40,7 @@ class NumericGeneratorTest {
 
     @Test
     void boundedCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(-10L, 10L, null, null, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-10L).maximum(10L).build());
 
         // when
         List<Long> values = LongStream.range(0, 20)
@@ -54,7 +54,7 @@ class NumericGeneratorTest {
 
     @Test
     void boundedAllValuesWithinRange() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(-10L, 10L, null, null, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-10L).maximum(10L).build());
 
         // when
         List<Long> values = LongStream.range(0, 100)
@@ -68,7 +68,7 @@ class NumericGeneratorTest {
 
     @Test
     void minOnlyCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(-5L, null, null, null, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-5L).build());
 
         // when
         List<Long> values = LongStream.range(0, 20)
@@ -83,7 +83,7 @@ class NumericGeneratorTest {
 
     @Test
     void exclusiveMinimumExcludesBound() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(null, 10L, 5L, null, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().maximum(10L).exclusiveMinimum(5L).build());
 
         // when
         List<Long> values = LongStream.range(0, 100)
@@ -98,7 +98,7 @@ class NumericGeneratorTest {
 
     @Test
     void exclusiveMaximumExcludesBound() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(-10L, null, null, 5L, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-10L).exclusiveMaximum(5L).build());
 
         // when
         List<Long> values = LongStream.range(0, 100)
@@ -113,7 +113,7 @@ class NumericGeneratorTest {
 
     @Test
     void exclusiveBoundsOnlyCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(null, null, -10L, 10L, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().exclusiveMinimum(-10L).exclusiveMaximum(10L).build());
 
         // when
         List<Long> values = LongStream.range(0, 20)
@@ -128,7 +128,7 @@ class NumericGeneratorTest {
 
     @Test
     void multipleOfAllValuesAreMultiples() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(null, null, null, null, 7L));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().multipleOf(7L).build());
 
         // when
         List<Long> values = LongStream.range(0, 100)
@@ -143,7 +143,7 @@ class NumericGeneratorTest {
     @Test
     void unboundedMultipleOfStaysWithinJsonSafeIntegerRange() {
         var safeMax = (1L << 53) - 1;
-        var generator = new NumericGenerator(withSeed(20260607L), NumericSchema.of(null, null, null, null, 5L));
+        var generator = new NumericGenerator(withSeed(20260607L), NumericSchema.builder().multipleOf(5L).build());
 
         // when
         List<Long> values = LongStream.range(0, 1000)
@@ -158,7 +158,7 @@ class NumericGeneratorTest {
 
     @Test
     void multipleOfWithBoundsCoversBoundaryMultiples() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(-20L, 20L, null, null, 7L));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-20L).maximum(20L).multipleOf(7L).build());
 
         // when
         List<Long> values = LongStream.range(0, 20)
@@ -173,7 +173,7 @@ class NumericGeneratorTest {
 
     @Test
     void multipleOfWithBoundsAllValuesValid() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(-20L, 20L, null, null, 7L));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-20L).maximum(20L).multipleOf(7L).build());
 
         // when
         List<Long> values = LongStream.range(0, 100)
@@ -187,7 +187,7 @@ class NumericGeneratorTest {
 
     @Test
     void multipleOfWithExclusiveBounds() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(null, null, -15L, 15L, 7L));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().exclusiveMinimum(-15L).exclusiveMaximum(15L).multipleOf(7L).build());
 
         // when
         List<Long> values = LongStream.range(0, 100)
@@ -202,7 +202,7 @@ class NumericGeneratorTest {
 
     @Test
     void maxOnlyCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.of(null, 5L, null, null, null));
+        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().maximum(5L).build());
 
         // when
         List<Long> values = LongStream.range(0, 20)

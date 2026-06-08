@@ -37,7 +37,7 @@ class StringGeneratorTest {
 
     @Test
     void minLengthRespected() {
-        var schema = StringSchema.of(5, null, null);
+        var schema = StringSchema.builder().minLength(5).build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -51,7 +51,7 @@ class StringGeneratorTest {
 
     @Test
     void maxLengthRespected() {
-        var schema = StringSchema.of(null, 8, null);
+        var schema = StringSchema.builder().maxLength(8).build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -65,7 +65,7 @@ class StringGeneratorTest {
 
     @Test
     void emitsBoundaryLengthMinLength() {
-        var schema = StringSchema.of(3, null, null);
+        var schema = StringSchema.builder().minLength(3).build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -77,7 +77,7 @@ class StringGeneratorTest {
 
     @Test
     void emitsBoundaryLengthMaxLength() {
-        var schema = StringSchema.of(null, 10, null);
+        var schema = StringSchema.builder().maxLength(10).build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -89,7 +89,7 @@ class StringGeneratorTest {
 
     @Test
     void emptyStringSkippedWhenMinLengthPositive() {
-        var schema = StringSchema.of(2, null, null);
+        var schema = StringSchema.builder().minLength(2).build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -103,7 +103,7 @@ class StringGeneratorTest {
 
     @Test
     void patternConstraintProducesMatchingStrings() {
-        var schema = StringSchema.of(null, null, "^[A-Z]{3}-\\d{4}$");
+        var schema = StringSchema.builder().pattern("^[A-Z]{3}-\\d{4}$").build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -117,7 +117,7 @@ class StringGeneratorTest {
 
     @Test
     void bothMinAndMaxLengthRespected() {
-        var schema = StringSchema.of(3, 7, null);
+        var schema = StringSchema.builder().minLength(3).maxLength(7).build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -136,7 +136,7 @@ class StringGeneratorTest {
 
     @Test
     void patternWithLengthConstraintsRespectsAll() {
-        var schema = StringSchema.of(5, 10, "^[a-z]+$");
+        var schema = StringSchema.builder().minLength(5).maxLength(10).pattern("^[a-z]+$").build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -154,7 +154,7 @@ class StringGeneratorTest {
 
     @Test
     void patternWithLengthConstraintsEmitsBoundaryLengths() {
-        var schema = StringSchema.of(5, 10, "^[a-z]+$");
+        var schema = StringSchema.builder().minLength(5).maxLength(10).pattern("^[a-z]+$").build();
         var generator = new StringGenerator(withSeed(42),schema);
 
         // when
@@ -169,7 +169,7 @@ class StringGeneratorTest {
 
     @Test
     void unboundedQuantifierPatternStaysWithinMaxLength() {
-        var schema = StringSchema.of(3, 12, "^[a-z]+$");
+        var schema = StringSchema.builder().minLength(3).maxLength(12).pattern("^[a-z]+$").build();
         var generator = new StringGenerator(withSeed(20260607L),schema);
 
         // when

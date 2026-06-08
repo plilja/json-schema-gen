@@ -4,17 +4,21 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import java.util.Map;
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Getter
+@SuperBuilder(toBuilder = true)
 @NoArgsConstructor
-@AllArgsConstructor(staticName = "of")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class ObjectSchema extends Schema {
 
+    @Builder.Default
     private Map<String, Schema> properties = Map.of();
+
+    @Builder.Default
     private List<String> required = List.of();
 
     @JsonIgnore
@@ -29,10 +33,5 @@ public final class ObjectSchema extends Schema {
         return properties.keySet().stream()
                 .filter(name -> !required.contains(name))
                 .toList();
-    }
-
-    @Override
-    public Schema copyTypeSpecific() {
-        return ObjectSchema.of(properties, required);
     }
 }
