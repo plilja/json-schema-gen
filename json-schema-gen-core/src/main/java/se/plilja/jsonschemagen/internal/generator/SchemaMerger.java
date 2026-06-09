@@ -4,9 +4,11 @@ import static se.plilja.jsonschemagen.internal.generator.FunctionalUtil.coalesce
 import static se.plilja.jsonschemagen.internal.generator.FunctionalUtil.maxNullable;
 import static se.plilja.jsonschemagen.internal.generator.FunctionalUtil.minNullable;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Stream;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
@@ -30,6 +32,18 @@ final class SchemaMerger {
         return result;
     }
 
+    static List<Schema> mergeEachWith(List<Schema> schemas, Schema other) {
+        var result = new ArrayList<Schema>();
+        for (var schema : schemas) {
+            try {
+                result.add(merge(List.of(schema, other)));
+            } catch (UnsatisfiableSchemaException ignored) {
+                // Schema incompatible with the other — drop it.
+            }
+        }
+        return result;
+    }
+
     private static Schema mergeTwoSchemas(Schema a, Schema b) {
         rejectUnsupportedComposition(a, b);
 
@@ -40,8 +54,8 @@ final class SchemaMerger {
             merged = b.toBuilder().build();
         } else if (a instanceof StringSchema sa && b instanceof StringSchema sb) {
             if (sa.getPattern() != null && sb.getPattern() != null) {
-                throw new IllegalArgumentException(
-                        "Cannot merge allOf branches with conflicting pattern constraints");
+                throw new UnsatisfiableSchemaException(
+                        "Cannot merge branches with conflicting pattern constraints");
             }
             merged = StringSchema.builder()
                     .minLength(maxNullable(sa.getMinLength(), sb.getMinLength()))
@@ -81,7 +95,7 @@ final class SchemaMerger {
                     .maxItems(minNullable(aa.getMaxItems(), ab.getMaxItems()))
                     .build();
         } else {
-            throw new IllegalArgumentException(
+            throw new UnsatisfiableSchemaException(
                     "Cannot merge schemas of types " + a.getClass().getSimpleName()
                             + " and " + b.getClass().getSimpleName());
         }
@@ -112,8 +126,8 @@ final class SchemaMerger {
         }
         var intersection = a.stream().filter(b::contains).toList();
         if (intersection.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "allOf enum branches have no common values");
+            throw new UnsatisfiableSchemaException(
+                    "enum branches have no common values");
         }
         return intersection;
     }

@@ -7,6 +7,7 @@ import java.util.Random;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 class AllOfGeneratorTest {
@@ -226,7 +227,7 @@ class AllOfGeneratorTest {
 
             // when / then
             assertThatThrownBy(() -> allOfGenerator(json))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(UnsatisfiableSchemaException.class)
                     .hasMessageContaining("StringSchema")
                     .hasMessageContaining("NumericSchema");
         }
@@ -256,7 +257,7 @@ class AllOfGeneratorTest {
 
             // when / then
             assertThatThrownBy(() -> allOfGenerator(json))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(UnsatisfiableSchemaException.class)
                     .hasMessageContaining("enum");
         }
 
@@ -273,7 +274,7 @@ class AllOfGeneratorTest {
 
             // when / then
             assertThatThrownBy(() -> allOfGenerator(json))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(UnsatisfiableSchemaException.class)
                     .hasMessageContaining("pattern");
         }
 

@@ -54,10 +54,34 @@ class OneOfGeneratorTest {
         assertThat(second).isInstanceOf(Number.class);
     }
 
+    @Test
+    void respectsParentSiblingConstraints() {
+        var generator = oneOfGenerator("""
+                {
+                    "type": "object",
+                    "required": ["x"],
+                    "properties": {"x": {"type": "string"}},
+                    "oneOf": [
+                        {"type": "object", "properties": {"y": {"type": "string"}}},
+                        {"type": "object", "properties": {"z": {"type": "integer"}}}
+                    ]
+                }
+                """);
+
+        // when
+        var values = Stream.generate(generator::generate)
+                .limit(50)
+                .map(v -> (java.util.Map<?, ?>) v)
+                .toList();
+
+        // then — parent's required constraint must hold on every value
+        assertThat(values).allMatch(m -> m.containsKey("x"));
+    }
+
     private static OneOfGenerator oneOfGenerator(String json) {
         var document = SchemaParser.parse(json);
         return new OneOfGenerator(
                 new GeneratorContext(document, new Random(42)),
-                document.getRoot().getOneOf());
+                document.getRoot());
     }
 }

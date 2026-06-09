@@ -33,6 +33,8 @@ public abstract sealed class Schema permits StringSchema, NumericSchema, Boolean
 
     private List<Schema> oneOf;
 
+    private List<Schema> anyOf;
+
     private List<Schema> allOf;
 
     public abstract SchemaBuilder<?, ?> toBuilder();

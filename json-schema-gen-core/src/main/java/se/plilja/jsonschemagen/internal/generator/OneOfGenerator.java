@@ -3,6 +3,7 @@ package se.plilja.jsonschemagen.internal.generator;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
 import java.util.List;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.Schema;
 
 final class OneOfGenerator extends PhaseGenerator<OneOfGenerator.GenerationPhase, Object> {
@@ -14,9 +15,14 @@ final class OneOfGenerator extends PhaseGenerator<OneOfGenerator.GenerationPhase
         EXHAUSTIVE, RANDOM
     }
 
-    OneOfGenerator(GeneratorContext context, List<Schema> subSchemas) {
+    OneOfGenerator(GeneratorContext context, Schema parent) {
         super(GenerationPhase.class, context);
-        this.subSchemas = subSchemas;
+        var parentCore = parent.toBuilder().oneOf(null).build();
+        this.subSchemas = SchemaMerger.mergeEachWith(parent.getOneOf(), parentCore);
+        if (subSchemas.isEmpty()) {
+            throw new UnsatisfiableSchemaException(
+                    "oneOf has no branch compatible with the parent schema");
+        }
     }
 
     @Override

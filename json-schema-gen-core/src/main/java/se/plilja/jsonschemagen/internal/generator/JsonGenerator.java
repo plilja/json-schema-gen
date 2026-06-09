@@ -37,7 +37,10 @@ public final class JsonGenerator {
             return new EnumGenerator(context, schema.getEnumValues());
         }
         if (schema.getOneOf() != null) {
-            return new OneOfGenerator(context, schema.getOneOf());
+            return new OneOfGenerator(context, schema);
+        }
+        if (schema.getAnyOf() != null) {
+            return new AnyOfGenerator(context, schema);
         }
         if (schema.getAllOf() != null) {
             return new AllOfGenerator(context, schema);

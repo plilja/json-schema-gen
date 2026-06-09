@@ -7,13 +7,13 @@ Implement generation for schemas that use combining keywords: `allOf`,
 
 ## Acceptance criteria
 
-- [ ] `allOf`: generated value satisfies all sub-schemas
-- [ ] `anyOf`: generated value satisfies at least one sub-schema
-- [ ] `oneOf`: generated value satisfies exactly one sub-schema
-- [ ] Across repeated calls, different branches of `anyOf` and `oneOf`
+- [x] `allOf`: generated value satisfies all sub-schemas
+- [x] `anyOf`: generated value satisfies at least one sub-schema
+- [x] `oneOf`: generated value satisfies exactly one sub-schema
+- [x] Across repeated calls, different branches of `anyOf` and `oneOf`
       are exercised
-- [ ] Integration tests validate output for each combining keyword
-- [ ] `mvn test` passes
+- [x] Integration tests validate output for each combining keyword
+- [x] `mvn test` passes
 
 ## Blocked by
 
