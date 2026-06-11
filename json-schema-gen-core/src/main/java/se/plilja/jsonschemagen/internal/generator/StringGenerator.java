@@ -12,8 +12,6 @@ import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPhase, String> {
 
-    // TODO consider generating more tricky characters such as newlines <, > and so on
-    private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz";
     private static final int PATTERN_RETRY_BUDGET = 100;
 
     private final StringSchema schema;
@@ -58,8 +56,8 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
             };
         }
         return switch (phase) {
-            case MIN_LENGTH -> schema.getMinLength() != null ? result(randomStringOfLength(schema.getMinLength())) : skip();
-            case MAX_LENGTH -> schema.getMaxLength() != null ? result(randomStringOfLength(schema.getMaxLength())) : skip();
+            case MIN_LENGTH -> schema.getMinLength() != null ? result(StringUtil.randomStringOfLength(schema.getMinLength(), context.random())) : skip();
+            case MAX_LENGTH -> schema.getMaxLength() != null ? result(StringUtil.randomStringOfLength(schema.getMaxLength(), context.random())) : skip();
             case EMPTY -> {
                 int min = coalesce(schema.getMinLength(), 0);
                 yield min == 0 ? result("") : skip();
@@ -96,14 +94,6 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
         int min = coalesce(schema.getMinLength(), 0);
         int max = coalesce(schema.getMaxLength(), min + 20);
         int length = min == max ? min : context.random().nextInt(min, max + 1);
-        return randomStringOfLength(length);
-    }
-
-    private String randomStringOfLength(int length) {
-        var sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(ALPHABET.charAt(context.random().nextInt(ALPHABET.length())));
-        }
-        return sb.toString();
+        return StringUtil.randomStringOfLength(length, context.random());
     }
 }

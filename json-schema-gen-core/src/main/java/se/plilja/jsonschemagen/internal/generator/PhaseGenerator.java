@@ -1,17 +1,17 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 // TODO deserves javadoc, add later
-abstract class PhaseGenerator<E extends Enum<E>, R> {
+public abstract class PhaseGenerator<E extends Enum<E>, R> {
 
     protected final GeneratorContext context;
     private E phase;
 
-    PhaseGenerator(Class<E> phaseClass, GeneratorContext context) {
+    protected PhaseGenerator(Class<E> phaseClass, GeneratorContext context) {
         this.context = context;
         this.phase = GenerationPhaseUtil.first(phaseClass);
     }
 
-    R generate() {
+    public R generate() {
         if (context.isMinimal()) {
             var result = generatePhase(minimalPhase());
             if (result instanceof GenerationResult.Present<R> present) {

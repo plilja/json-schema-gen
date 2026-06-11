@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-final class FunctionalUtil {
+public final class FunctionalUtil {
 
     private FunctionalUtil() {
     }
@@ -17,7 +17,7 @@ final class FunctionalUtil {
     }
 
     @SafeVarargs
-    static <T> T coalesce(T... values) {
+    public static <T> T coalesce(T... values) {
         for (T value : values) {
             if (value != null) {
                 return value;

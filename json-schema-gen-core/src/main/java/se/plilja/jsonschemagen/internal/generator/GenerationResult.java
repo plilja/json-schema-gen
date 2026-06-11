@@ -1,6 +1,6 @@
 package se.plilja.jsonschemagen.internal.generator;
 
-sealed interface GenerationResult<R> {
+public sealed interface GenerationResult<R> {
 
     static <R> GenerationResult<R> result(R value) {
         return new Present<>(value);

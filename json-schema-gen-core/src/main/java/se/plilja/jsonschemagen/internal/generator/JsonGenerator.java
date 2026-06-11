@@ -1,6 +1,7 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import java.util.Random;
+import se.plilja.jsonschemagen.internal.generator.format.EmailGenerator;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.BooleanSchema;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
@@ -8,6 +9,7 @@ import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
+import se.plilja.jsonschemagen.internal.model.StringFormat;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
@@ -46,7 +48,9 @@ public final class JsonGenerator {
             return new AllOfGenerator(context, schema);
         }
         return switch (schema) {
-            case StringSchema s -> new StringGenerator(context, s);
+            case StringSchema s -> s.getFormat() == StringFormat.EMAIL
+                    ? new EmailGenerator(context, s)
+                    : new StringGenerator(context, s);
             case NumericSchema s -> new NumericGenerator(context, s);
             case BooleanSchema ignored -> new BooleanGenerator(context);
             case NullSchema ignored -> new NullGenerator(context);

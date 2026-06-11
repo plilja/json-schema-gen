@@ -28,7 +28,7 @@ class ArchitectureTest {
 
         @ArchTest
         static final SliceRule noCycles = slices()
-                        .matching("se.plilja.jsonschemagen.(**)")
+                        .matching("se.plilja.jsonschemagen.internal.(*)..")
                         .should().beFreeOfCycles();
 
         // TODO: unit tests for individual generators currently construct GeneratorContext directly

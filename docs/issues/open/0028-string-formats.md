@@ -26,18 +26,31 @@ representative values (the minimum legal value, a typical value, a
 maximum-ish or unusual-but-legal value) before falling back to random
 conforming values.
 
+## Status
+
+`email` is implemented; remaining formats track here.
+
 ## Acceptance criteria
 
 - [ ] Each format in the list above generates values that validate
       against a strict Draft 7 validator
-- [ ] An unknown / unrecognised `format` is treated as a no-op (string
+      - [x] `email`
+      - [ ] `date`, `date-time`, `time`
+      - [ ] `idn-email`
+      - [ ] `uri`, `uri-reference`, `iri`, `iri-reference`
+      - [ ] `hostname`, `idn-hostname`
+      - [ ] `ipv4`, `ipv6`
+      - [ ] `uuid`
+      - [ ] `regex`
+      - [ ] `json-pointer`, `relative-json-pointer`
+- [x] An unknown / unrecognised `format` is treated as a no-op (string
       is generated according to the other constraints) — `format` is
       annotation-only by default in Draft 7
-- [ ] `pattern` and `format` on the same string compose — generated
-      values satisfy both (when satisfiable)
-- [ ] Length constraints (`minLength`, `maxLength`) compose with
-      `format` where the format permits
-- [ ] `mvn verify` passes
+- [x] `pattern` and `format` on the same string compose — generated
+      values satisfy both (when satisfiable) — implemented for `email`
+- [x] Length constraints (`minLength`, `maxLength`) compose with
+      `format` where the format permits — implemented for `email`
+- [x] `mvn verify` passes
 
 ## Blocked by
 

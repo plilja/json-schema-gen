@@ -5,6 +5,7 @@ import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.internal.model.StringFormat;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 class StringGeneratorTest {
@@ -165,6 +166,23 @@ class StringGeneratorTest {
         // then
         assertThat(results).anyMatch(s -> s.length() == 5);
         assertThat(results).anyMatch(s -> s.length() == 10);
+    }
+
+    @Test
+    void unknownFormatIsNoOp() {
+        var schema = StringSchema.builder().format(StringFormat.UNKNOWN).maxLength(5).build();
+        var generator = new StringGenerator(withSeed(42), schema);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(s -> {
+            assertThat(s).matches("[a-z]*");
+            assertThat(s).hasSizeLessThanOrEqualTo(5);
+        });
     }
 
     @Test

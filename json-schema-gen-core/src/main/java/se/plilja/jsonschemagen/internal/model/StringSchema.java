@@ -14,4 +14,5 @@ public final class StringSchema extends Schema {
     private Integer minLength;
     private Integer maxLength;
     private String pattern;
+    private StringFormat format;
 }

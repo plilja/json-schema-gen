@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.internal.model.StringFormat;
+import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 class SchemaParserTest {
 
@@ -227,6 +229,22 @@ class SchemaParserTest {
                 """))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Only internal");
+    }
+
+    @Test
+    void unknownFormatResolvesToUnknownSentinel() {
+        var document = SchemaParser.parse("""
+                {
+                    "type": "string",
+                    "format": "made-up"
+                }
+                """);
+
+        // when
+        var schema = (StringSchema) document.getRoot();
+
+        // then
+        assertThat(schema.getFormat()).isEqualTo(StringFormat.UNKNOWN);
     }
 
     @Test

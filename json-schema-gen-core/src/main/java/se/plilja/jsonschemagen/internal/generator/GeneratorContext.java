@@ -9,7 +9,7 @@ import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 /**
  * Shared state through the generator tree.
  */
-final class GeneratorContext {
+public final class GeneratorContext {
 
     /** The parsed document, used to look up {@code $ref} targets. */
     private final SchemaDocument document;
@@ -35,7 +35,7 @@ final class GeneratorContext {
         this.random = random;
     }
 
-    Random random() {
+    public Random random() {
         return random;
     }
 

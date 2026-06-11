@@ -1,2 +1,8 @@
 <FindBugsFilter>
+    <!-- EI_EXPOSE_REP on GeneratorContext.random() is intentional and suppressed. -->
+    <Match>
+        <Class name="se.plilja.jsonschemagen.internal.generator.GeneratorContext"/>
+        <Method name="random"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
 </FindBugsFilter>
