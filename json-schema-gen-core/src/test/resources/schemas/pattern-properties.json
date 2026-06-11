@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "version"
+  ],
+  "patternProperties": {
+    "^x-[a-z]+$": {
+      "type": "string"
+    },
+    "^num_[a-z]+$": {
+      "type": "integer"
+    }
+  }
+}

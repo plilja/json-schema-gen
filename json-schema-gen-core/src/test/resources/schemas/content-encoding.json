@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "encoded": {
+      "type": "string",
+      "contentEncoding": "base64"
+    },
+    "encodedJson": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "contentMediaType": "application/json"
+    },
+    "plainJson": {
+      "type": "string",
+      "contentMediaType": "application/json"
+    }
+  }
+}
