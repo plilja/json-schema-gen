@@ -2,6 +2,7 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import java.util.Random;
 import se.plilja.jsonschemagen.internal.generator.format.EmailGenerator;
+import se.plilja.jsonschemagen.internal.generator.format.UuidGenerator;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.BooleanSchema;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
@@ -9,7 +10,6 @@ import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
-import se.plilja.jsonschemagen.internal.model.StringFormat;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
@@ -48,15 +48,25 @@ public final class JsonGenerator {
             return new AllOfGenerator(context, schema);
         }
         return switch (schema) {
-            case StringSchema s -> s.getFormat() == StringFormat.EMAIL
-                    ? new EmailGenerator(context, s)
-                    : new StringGenerator(context, s);
+            case StringSchema s -> buildStringDelegate(s, context);
             case NumericSchema s -> new NumericGenerator(context, s);
             case BooleanSchema ignored -> new BooleanGenerator(context);
             case NullSchema ignored -> new NullGenerator(context);
             case ObjectSchema s -> new ObjectGenerator(context, s);
             case ArraySchema s -> new ArrayGenerator(context, s);
             case UntypedSchema ignored -> throw new IllegalArgumentException("Schema has no type and no enum");
+        };
+    }
+
+    private static PhaseGenerator<?, ?> buildStringDelegate(StringSchema schema, GeneratorContext context) {
+        var format = schema.getFormat();
+        if (format == null) {
+            return new StringGenerator(context, schema);
+        }
+        return switch (format) {
+            case EMAIL -> new EmailGenerator(context, schema);
+            case UUID -> new UuidGenerator(context, schema);
+            default -> new StringGenerator(context, schema);
         };
     }
 }

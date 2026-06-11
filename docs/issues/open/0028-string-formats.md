@@ -28,7 +28,7 @@ conforming values.
 
 ## Status
 
-`email` is implemented; remaining formats track here.
+`email` and `uuid` are implemented; remaining formats track here.
 
 ## Acceptance criteria
 
@@ -40,7 +40,7 @@ conforming values.
       - [ ] `uri`, `uri-reference`, `iri`, `iri-reference`
       - [ ] `hostname`, `idn-hostname`
       - [ ] `ipv4`, `ipv6`
-      - [ ] `uuid`
+      - [x] `uuid`
       - [ ] `regex`
       - [ ] `json-pointer`, `relative-json-pointer`
 - [x] An unknown / unrecognised `format` is treated as a no-op (string
