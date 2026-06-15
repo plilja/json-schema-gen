@@ -1,0 +1,6 @@
+{
+  "type": "string",
+  "format": "idn-email",
+  "minLength": 10,
+  "maxLength": 30
+}

@@ -2,8 +2,6 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-import java.util.Random;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -117,76 +115,4 @@ class FunctionalUtilTest {
         }
     }
 
-    @Nested
-    class RandomSubset {
-
-        @Test
-        void returnsRequestedSize() {
-            var items = List.of("a", "b", "c", "d", "e");
-
-            // when
-            var subset = FunctionalUtil.randomSubset(items, 3, new Random(42));
-
-            // then
-            assertThat(subset).hasSize(3);
-        }
-
-        @Test
-        void containsOnlyOriginalElements() {
-            var items = List.of("a", "b", "c", "d", "e");
-
-            // when
-            var subset = FunctionalUtil.randomSubset(items, 3, new Random(42));
-
-            // then
-            assertThat(items).containsAll(subset);
-        }
-
-        @Test
-        void containsNoDuplicates() {
-            var items = List.of("a", "b", "c", "d", "e");
-
-            // when
-            var subset = FunctionalUtil.randomSubset(items, 4, new Random(42));
-
-            // then
-            assertThat(subset).doesNotHaveDuplicates();
-        }
-
-        @Test
-        void ofFullSizeReturnsAllElements() {
-            var items = List.of("a", "b", "c");
-
-            // when
-            var subset = FunctionalUtil.randomSubset(items, 3, new Random(42));
-
-            // then
-            assertThat(subset).containsExactlyInAnyOrderElementsOf(items);
-        }
-
-        @Test
-        void ofSizeZeroIsEmpty() {
-            var items = List.of("a", "b", "c");
-
-            // when
-            var subset = FunctionalUtil.randomSubset(items, 0, new Random(42));
-
-            // then
-            assertThat(subset).isEmpty();
-        }
-
-        @Test
-        void usesProvidedRandom() {
-            // Two different seeds should (with high probability for a 5-element list)
-            // produce different orderings or different element selections.
-            var items = List.of("a", "b", "c", "d", "e");
-
-            // when
-            var first = FunctionalUtil.randomSubset(items, 3, new Random(1));
-            var second = FunctionalUtil.randomSubset(items, 3, new Random(2));
-
-            // then
-            assertThat(first).isNotEqualTo(second);
-        }
-    }
 }

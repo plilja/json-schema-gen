@@ -28,7 +28,7 @@ conforming values.
 
 ## Status
 
-`email`, `uuid`, `date`, `date-time`, `time`, `hostname`, `ipv4`, and `ipv6` are implemented; remaining formats track here.
+`email`, `idn-email`, `uuid`, `date`, `date-time`, `time`, `hostname`, `idn-hostname`, `ipv4`, and `ipv6` are implemented; remaining formats track here.
 
 ## Acceptance criteria
 
@@ -36,10 +36,10 @@ conforming values.
       against a strict Draft 7 validator
       - [x] `email`
       - [x] `date`, `date-time`, `time`
-      - [ ] `idn-email`
+      - [x] `idn-email`
       - [ ] `uri`, `uri-reference`, `iri`, `iri-reference`
       - [x] `hostname`
-      - [ ] `idn-hostname`
+      - [x] `idn-hostname`
       - [x] `ipv4`, `ipv6`
       - [x] `uuid`
       - [ ] `regex`
@@ -51,9 +51,9 @@ conforming values.
       values satisfy both (when satisfiable) — implemented for `email`
 - [x] Length constraints (`minLength`, `maxLength`) compose with
       `format` where the format permits — implemented for `email`,
-      `hostname`, `ipv4`, `ipv6` (length-bounded formats throw an
-      `UnsatisfiableSchemaException` up-front when bounds exclude the
-      format's reachable length range)
+      `idn-email`, `hostname`, `idn-hostname`, `ipv4`, `ipv6`
+      (length-bounded formats throw an `UnsatisfiableSchemaException`
+      up-front when bounds exclude the format's reachable length range)
 - [x] `mvn verify` passes
 
 ## Blocked by

@@ -87,7 +87,7 @@ class EmailGeneratorTest {
 
     @Test
     void exactBoundaryLengthAcceptsCanonical() {
-        // minLength == maxLength == 6: only "a@b.co" can satisfy the SHORT phase.
+        // minLength == maxLength == 6: only "a@a.co" can satisfy the SHORT phase.
         // Kills the `<` -> `<=` and `>` -> `>=` mutations in acceptable().
         var schema = StringSchema.builder().format(StringFormat.EMAIL).minLength(6).maxLength(6).build();
         var generator = new EmailGenerator(withSeed(42), schema);
@@ -96,7 +96,7 @@ class EmailGeneratorTest {
         var first = generator.generate();
 
         // then
-        assertThat(first).isEqualTo("a@b.co");
+        assertThat(first).isEqualTo("a@a.co");
     }
 
     @Test
@@ -116,6 +116,36 @@ class EmailGeneratorTest {
             assertThat(s).contains("@");
             assertThat(s.length()).isLessThanOrEqualTo(10);
         });
+    }
+
+    @Test
+    void acceptsMinLengthBeyondRandomPhaseCeiling() {
+        // The LONG phase can grow the local part up to LOCAL_LEN_RFC_CAP (64) chars,
+        // so a schema with minLength well beyond the random-phase ceiling is satisfiable.
+        var schema = StringSchema.builder().format(StringFormat.EMAIL).minLength(40).maxLength(60).build();
+        var generator = new EmailGenerator(withSeed(42), schema);
+
+        // when
+        var first = generator.generate();
+
+        // then
+        assertThat(first).contains("@");
+        assertThat(first.length()).isBetween(40, 60);
+    }
+
+    @Test
+    void shortPhaseDoesNotExceedRfcLocalPartCap() {
+        // The local part of an email is capped at 64 chars by RFC 5321; SHORT phase
+        // must clamp even when minLength would otherwise grow it beyond.
+        var schema = StringSchema.builder().format(StringFormat.EMAIL).minLength(70).maxLength(80).build();
+        var generator = new EmailGenerator(withSeed(42), schema);
+
+        // when
+        var first = generator.generate();
+
+        // then
+        assertThat(first).contains("@");
+        assertThat(first.indexOf('@')).isLessThanOrEqualTo(64);
     }
 
     @Test

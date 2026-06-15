@@ -1,19 +1,8 @@
 package se.plilja.jsonschemagen.internal.generator;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-
 public final class FunctionalUtil {
 
     private FunctionalUtil() {
-    }
-
-    static <T> List<T> randomSubset(List<T> items, int n, Random random) {
-        var shuffled = new ArrayList<>(items);
-        Collections.shuffle(shuffled, random);
-        return shuffled.subList(0, n);
     }
 
     @SafeVarargs

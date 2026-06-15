@@ -122,3 +122,11 @@ Use `// when` and `// then` comments to separate test phases.
   exploration are fine while planning. If you're unsure whether you have
   the green light, you don't — present the plan, ask "ready to start?",
   and wait.
+- Do not introduce new patterns or invent new abstractions (factories,
+  builders, strategy/visitor shapes, helper layers, new base classes,
+  new interfaces, generic wrappers, etc.) unless the ticket explicitly
+  calls for it OR you have asked and gotten explicit confirmation.
+  Solving the stated problem with the existing shapes in the codebase
+  is the default. "It would be cleaner" or "it would scale better" is
+  not sufficient justification — propose it, wait for a yes, then
+  implement.

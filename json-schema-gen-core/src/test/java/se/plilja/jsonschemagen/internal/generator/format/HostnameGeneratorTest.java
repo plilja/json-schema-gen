@@ -36,10 +36,10 @@ class HostnameGeneratorTest {
 
         // then
         assertThat(results).containsExactly(
-                "wmarnqdp.aiguew.lzora.zvmg",
-                "mkshh.glpkffvd.cdvbxjs",
-                "o.zpxbtj.jy.upjfgv",
-                "nhqu.voyx.bbpqcn",
-                "h.bpzoqgq");
+                "a.co",
+                "hwmarnqdpaaiguewilzorarzv.info",
+                "ymkshhv.lp.info",
+                "dpcdvbx.sqco.uk",
+                "btj.jy.fr");
     }
 }

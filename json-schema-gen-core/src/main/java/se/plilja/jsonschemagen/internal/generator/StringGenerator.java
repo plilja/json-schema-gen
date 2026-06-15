@@ -56,8 +56,8 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
             };
         }
         return switch (phase) {
-            case MIN_LENGTH -> schema.getMinLength() != null ? result(StringUtil.randomStringOfLength(schema.getMinLength(), context.random())) : skip();
-            case MAX_LENGTH -> schema.getMaxLength() != null ? result(StringUtil.randomStringOfLength(schema.getMaxLength(), context.random())) : skip();
+            case MIN_LENGTH -> schema.getMinLength() != null ? result(RandomUtil.randomStringOfLength(schema.getMinLength(), context.random())) : skip();
+            case MAX_LENGTH -> schema.getMaxLength() != null ? result(RandomUtil.randomStringOfLength(schema.getMaxLength(), context.random())) : skip();
             case EMPTY -> {
                 int min = coalesce(schema.getMinLength(), 0);
                 yield min == 0 ? result("") : skip();
@@ -94,6 +94,6 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
         int min = coalesce(schema.getMinLength(), 0);
         int max = coalesce(schema.getMaxLength(), min + 20);
         int length = min == max ? min : context.random().nextInt(min, max + 1);
-        return StringUtil.randomStringOfLength(length, context.random());
+        return RandomUtil.randomStringOfLength(length, context.random());
     }
 }

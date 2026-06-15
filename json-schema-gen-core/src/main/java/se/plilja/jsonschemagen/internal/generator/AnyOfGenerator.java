@@ -56,7 +56,7 @@ final class AnyOfGenerator extends PhaseGenerator<AnyOfGenerator.GenerationPhase
         // satisfiable because every branch in subSchemas was already proven
         // mergeable with the parent.
         for (int n = context.random().nextInt(subSchemas.size()) + 1; n >= 1; n--) {
-            var subset = FunctionalUtil.randomSubset(subSchemas, n, context.random());
+            var subset = RandomUtil.randomSubset(subSchemas, n, context.random());
             try {
                 return SchemaMerger.merge(subset);
             } catch (UnsatisfiableSchemaException ignored) {

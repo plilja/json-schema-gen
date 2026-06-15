@@ -3,31 +3,54 @@ package se.plilja.jsonschemagen.internal.generator.format;
 import static se.plilja.jsonschemagen.internal.generator.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
+import java.util.List;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
+import se.plilja.jsonschemagen.internal.generator.RandomUtil;
 import se.plilja.jsonschemagen.internal.generator.StringUtil;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 public final class EmailGenerator extends StringFormatGenerator<EmailGenerator.EmailPhase> {
 
-    private static final String[] TLDS = {
-            "com", "org", "net", "io", "co", "ai", "dev", "app",
-            "info", "biz", "uk", "us", "de", "jp", "fr", "se",
-    };
+    private static final int MIN_LOCAL_LEN = 1;
+    private static final int MAX_LOCAL_LEN = 7;
+    private static final int MIN_DOMAIN_LEN = 1;
+    private static final int MAX_DOMAIN_LEN = 7;
+    private static final int LOCAL_LEN_RFC_CAP = 64;
 
-    enum EmailPhase {
+    private final Alphabet canonical;
+    private final List<Alphabet> randomPool;
+
+    public enum EmailPhase {
         SHORT, LONG, RANDOM
     }
 
     public EmailGenerator(GeneratorContext context, StringSchema schema) {
+        this(context, schema, Alphabets.EN, List.of(Alphabets.EN));
+    }
+
+    EmailGenerator(GeneratorContext context, StringSchema schema, Alphabet canonical, List<Alphabet> randomPool) {
         super(EmailPhase.class, context, schema);
+        this.canonical = canonical;
+        this.randomPool = randomPool;
+        int minReachable = randomPool.stream()
+                .mapToInt(a -> MIN_LOCAL_LEN + 1 + MIN_DOMAIN_LEN + 1 + StringUtil.shortest(a.tlds()).length())
+                .min().orElseThrow();
+        int maxReachable = randomPool.stream()
+                .mapToInt(a -> LOCAL_LEN_RFC_CAP + 1 + 1 + 1 + StringUtil.longest(a.tlds()).length())
+                .max().orElseThrow();
+        if (schema.getMinLength() != null && schema.getMinLength() > maxReachable
+                || schema.getMaxLength() != null && schema.getMaxLength() < minReachable) {
+            throw new UnsatisfiableSchemaException(
+                    "Email addresses produced by this generator are between " + minReachable
+                            + " and " + maxReachable + " characters; schema length bounds exclude that");
+        }
     }
 
     @Override
     protected EmailPhase minimalPhase() {
-        // SHORT/LONG can skip when tight bounds reject the canonical; RANDOM is the only
-        // non-skippable phase here, as required by the PhaseGenerator contract.
-        return EmailPhase.RANDOM;
+        return EmailPhase.SHORT;
     }
 
     @Override
@@ -39,26 +62,28 @@ public final class EmailGenerator extends StringFormatGenerator<EmailGenerator.E
         };
     }
 
+    @Override
+    protected String generateCandidate() {
+        var alphabet = RandomUtil.randomOne(randomPool, context.random());
+        int localLen = context.random().nextInt(MIN_LOCAL_LEN, MAX_LOCAL_LEN + 1);
+        int domainLen = context.random().nextInt(MIN_DOMAIN_LEN, MAX_DOMAIN_LEN + 1);
+        var tld = RandomUtil.randomOne(alphabet.tlds(), context.random());
+        return RandomUtil.randomStringOfLength(alphabet.chars(), localLen, context.random())
+                + "@" + RandomUtil.randomStringOfLength(alphabet.chars(), domainLen, context.random())
+                + "." + tld;
+    }
+
     private String shortEmail() {
-        int target = Math.max(6, coalesce(schema.getMinLength(), 0));
-        int localLen = Math.max(1, target - "@b.co".length());
-        return "a".repeat(localLen) + "@b.co";
+        var suffix = "@" + canonical.firstChar() + "." + StringUtil.shortest(canonical.tlds());
+        int target = Math.max(MIN_LOCAL_LEN + suffix.length(), coalesce(schema.getMinLength(), 0));
+        int localLen = Math.max(MIN_LOCAL_LEN, Math.min(LOCAL_LEN_RFC_CAP, target - suffix.length()));
+        return canonical.firstChar().repeat(localLen) + suffix;
     }
 
     private String longEmail() {
-        // 64 cap matches RFC 5321 local-part max so the value stays validator-strict.
+        var suffix = "@" + canonical.firstChar() + "." + StringUtil.longest(canonical.tlds());
         int target = coalesce(schema.getMaxLength(), 30);
-        int localLen = Math.max(1, Math.min(64, target - "@example.com".length()));
-        return "a".repeat(localLen) + "@example.com";
-    }
-
-    @Override
-    protected String generateCandidate() {
-        int localLen = context.random().nextInt(1, 8);
-        int domainLen = context.random().nextInt(1, 8);
-        var tld = TLDS[context.random().nextInt(TLDS.length)];
-        return StringUtil.randomStringOfLength(localLen, context.random())
-                + "@" + StringUtil.randomStringOfLength(domainLen, context.random())
-                + "." + tld;
+        int localLen = Math.max(MIN_LOCAL_LEN, Math.min(LOCAL_LEN_RFC_CAP, target - suffix.length()));
+        return canonical.firstChar().repeat(localLen) + suffix;
     }
 }
