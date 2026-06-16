@@ -69,7 +69,7 @@ public final class HostnameGenerator extends StringFormatGenerator<HostnameGener
         return randomHostname(alphabet, context.random());
     }
 
-    private static String randomHostname(Alphabet alphabet, Random random) {
+    static String randomHostname(Alphabet alphabet, Random random) {
         int labelCount = random.nextInt(MIN_LABELS, MAX_LABELS + 1);
         var sb = new StringBuilder();
         for (int i = 0; i < labelCount - 1; i++) {

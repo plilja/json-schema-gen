@@ -2,6 +2,7 @@ package se.plilja.jsonschemagen.internal.generator.format;
 
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
+import java.util.Random;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
@@ -39,9 +40,13 @@ public final class Ipv4Generator extends StringFormatGenerator<Ipv4Generator.Ipv
 
     @Override
     protected String generateCandidate() {
-        return context.random().nextInt(256)
-                + "." + context.random().nextInt(256)
-                + "." + context.random().nextInt(256)
-                + "." + context.random().nextInt(256);
+        return randomIpv4(context.random());
+    }
+
+    static String randomIpv4(Random random) {
+        return random.nextInt(256)
+                + "." + random.nextInt(256)
+                + "." + random.nextInt(256)
+                + "." + random.nextInt(256);
     }
 }

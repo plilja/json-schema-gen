@@ -4,6 +4,7 @@ import static se.plilja.jsonschemagen.internal.generator.FunctionalUtil.coalesce
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
 import java.util.List;
+import java.util.Random;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
@@ -65,11 +66,15 @@ public final class EmailGenerator extends StringFormatGenerator<EmailGenerator.E
     @Override
     protected String generateCandidate() {
         var alphabet = RandomUtil.randomOne(randomPool, context.random());
-        int localLen = context.random().nextInt(MIN_LOCAL_LEN, MAX_LOCAL_LEN + 1);
-        int domainLen = context.random().nextInt(MIN_DOMAIN_LEN, MAX_DOMAIN_LEN + 1);
-        var tld = RandomUtil.randomOne(alphabet.tlds(), context.random());
-        return RandomUtil.randomStringOfLength(alphabet.chars(), localLen, context.random())
-                + "@" + RandomUtil.randomStringOfLength(alphabet.chars(), domainLen, context.random())
+        return randomEmail(alphabet, context.random());
+    }
+
+    static String randomEmail(Alphabet alphabet, Random random) {
+        int localLen = random.nextInt(MIN_LOCAL_LEN, MAX_LOCAL_LEN + 1);
+        int domainLen = random.nextInt(MIN_DOMAIN_LEN, MAX_DOMAIN_LEN + 1);
+        var tld = RandomUtil.randomOne(alphabet.tlds(), random);
+        return RandomUtil.randomStringOfLength(alphabet.chars(), localLen, random)
+                + "@" + RandomUtil.randomStringOfLength(alphabet.chars(), domainLen, random)
                 + "." + tld;
     }
 
