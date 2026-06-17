@@ -28,7 +28,7 @@ conforming values.
 
 ## Status
 
-`email`, `idn-email`, `uuid`, `date`, `date-time`, `time`, `hostname`, `idn-hostname`, `ipv4`, `ipv6`, `uri`, `uri-reference`, `iri`, and `iri-reference` are implemented; remaining formats track here.
+`email`, `idn-email`, `uuid`, `date`, `date-time`, `time`, `hostname`, `idn-hostname`, `ipv4`, `ipv6`, `uri`, `uri-reference`, `iri`, `iri-reference`, `json-pointer`, and `relative-json-pointer` are implemented; remaining formats track here.
 
 ## Acceptance criteria
 
@@ -45,7 +45,7 @@ conforming values.
       - [x] `ipv4`, `ipv6`
       - [x] `uuid`
       - [ ] `regex`
-      - [ ] `json-pointer`, `relative-json-pointer`
+      - [x] `json-pointer`, `relative-json-pointer`
 - [x] An unknown / unrecognised `format` is treated as a no-op (string
       is generated according to the other constraints) — `format` is
       annotation-only by default in Draft 7
