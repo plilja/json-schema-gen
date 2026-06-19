@@ -4,6 +4,7 @@ import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -24,20 +25,17 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Slf4j
 class IntegrationTest {
-
     private static final int ITERATIONS = 250;
-
     private static final long DEFAULT_SEED = 42L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(IntegrationTest.class);
-
-    private static final JsonSchemaFactory FACTORY =
+    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY =
             JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
 
     static List<Arguments> parameters() throws IOException, URISyntaxException {
         long seed = resolveSeed();
-        LOG.info("IntegrationTest seed: {} (override with -Dtest.seed=<long>)", seed);
+        log.info("IntegrationTest seed: {} (override with -Dtest.seed=<long>)", seed);
         Path schemasDir = Paths.get(
                 IntegrationTest.class.getClassLoader().getResource("schemas").toURI());
         List<Path> schemaFiles;
@@ -75,7 +73,7 @@ class IntegrationTest {
     @MethodSource("parameters")
     void generatesValidJson(String schemaName, String schemaContent, int invocation, String json) {
         // when
-        Set<ValidationMessage> errors = FACTORY.getSchema(schemaContent)
+        Set<ValidationMessage> errors = JSON_SCHEMA_FACTORY.getSchema(schemaContent)
                 .validate(json, InputFormat.JSON);
 
         // then

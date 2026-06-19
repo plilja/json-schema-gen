@@ -153,6 +153,12 @@ Use `// when` and `// then` comments to separate test phases.
   exploration are fine while planning. If you're unsure whether you have
   the green light, you don't — present the plan, ask "ready to start?",
   and wait.
+- **Review feedback is not a green light.** When the user gives review
+  comments, corrections, or feedback on a proposal: summarize your
+  updated findings and proposed solution, then ask for confirmation
+  before coding. The user pointing out a problem or asking "what about
+  X?" means "revise the plan", not "go fix it". Only start coding after
+  an explicit go-ahead.
 - Do not introduce new patterns or invent new abstractions (factories,
   builders, strategy/visitor shapes, helper layers, new base classes,
   new interfaces, generic wrappers, etc.) unless the ticket explicitly
