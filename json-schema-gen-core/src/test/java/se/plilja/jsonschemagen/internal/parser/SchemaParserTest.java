@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.internal.model.NullSchema;
+import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.StringFormat;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
+import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
 class SchemaParserTest {
 
@@ -272,5 +275,35 @@ class SchemaParserTest {
                 """))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("#/definitions/Missing");
+    }
+
+    @Test
+    void typeArrayIsRewrittenToOneOf() {
+        // when
+        var document = SchemaParser.parse("""
+                {"type": ["string", "null"]}
+                """);
+
+        // then
+        var root = document.getRoot();
+        assertThat(root).isInstanceOf(UntypedSchema.class);
+        assertThat(root.getOneOf()).hasSize(2);
+        assertThat(root.getOneOf().get(0)).isInstanceOf(StringSchema.class);
+        assertThat(root.getOneOf().get(1)).isInstanceOf(NullSchema.class);
+    }
+
+    @Test
+    void typeArrayPreservesConstraintsOnRelevantBranch() {
+        // when
+        var document = SchemaParser.parse("""
+                {"type": ["integer", "string"], "minLength": 3}
+                """);
+
+        // then
+        var root = document.getRoot();
+        assertThat(root.getOneOf()).hasSize(2);
+        assertThat(root.getOneOf().get(0)).isInstanceOf(NumericSchema.class);
+        var stringBranch = (StringSchema) root.getOneOf().get(1);
+        assertThat(stringBranch.getMinLength()).isEqualTo(3);
     }
 }

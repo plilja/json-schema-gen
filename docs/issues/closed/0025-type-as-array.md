@@ -24,15 +24,15 @@ to.
 
 ## Acceptance criteria
 
-- [ ] `{"type": ["string", "null"]}` parses and generates values that
+- [x] `{"type": ["string", "null"]}` parses and generates values that
       are sometimes strings and sometimes `null`
-- [ ] `{"type": ["integer", "string"], "minLength": 3}` generates either
+- [x] `{"type": ["integer", "string"], "minLength": 3}` generates either
       an integer or a string of length ≥ 3 (constraints apply to the
       branch they're meaningful for; irrelevant constraints are ignored)
-- [ ] Single-string `type` continues to work exactly as today
-- [ ] Cross-cutting keywords (`enum`, `const`, `if`/`then`/`else`,
+- [x] Single-string `type` continues to work exactly as today
+- [x] Cross-cutting keywords (`enum`, `const`, `if`/`then`/`else`,
       combining keywords) still apply over the union
-- [ ] `mvn verify` passes
+- [x] `mvn verify` passes
 
 ## Blocked by
 
