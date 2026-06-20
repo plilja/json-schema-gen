@@ -1,8 +1,8 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
-import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.maxNullable;
-import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.minNullable;
+import static se.plilja.jsonschemagen.internal.util.MathUtil.maxNullable;
+import static se.plilja.jsonschemagen.internal.util.MathUtil.minNullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

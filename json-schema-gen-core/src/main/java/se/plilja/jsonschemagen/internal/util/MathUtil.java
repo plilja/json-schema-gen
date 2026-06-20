@@ -1,5 +1,7 @@
 package se.plilja.jsonschemagen.internal.util;
 
+import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
+
 import java.util.Random;
 
 public final class MathUtil {
@@ -35,6 +37,28 @@ public final class MathUtil {
         int low = Math.min(ceiling, Math.max(floor, min));
         int high = Math.min(ceiling, Math.max(low, max));
         return new IntRange(low, high);
+    }
+
+    static <T extends Comparable<T>> T max(T a, T b) {
+        return a.compareTo(b) >= 0 ? a : b;
+    }
+
+    static <T extends Comparable<T>> T min(T a, T b) {
+        return a.compareTo(b) <= 0 ? a : b;
+    }
+
+    public static <T extends Comparable<T>> T maxNullable(T a, T b) {
+        if (a == null || b == null) {
+            return coalesce(a, b);
+        }
+        return max(a, b);
+    }
+
+    public static <T extends Comparable<T>> T minNullable(T a, T b) {
+        if (a == null || b == null) {
+            return coalesce(a, b);
+        }
+        return min(a, b);
     }
 
     static long gcd(long a, long b) {

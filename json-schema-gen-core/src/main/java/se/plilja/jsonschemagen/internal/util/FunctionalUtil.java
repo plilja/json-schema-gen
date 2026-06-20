@@ -15,25 +15,4 @@ public final class FunctionalUtil {
         return null;
     }
 
-    static <T extends Comparable<T>> T max(T a, T b) {
-        return a.compareTo(b) >= 0 ? a : b;
-    }
-
-    static <T extends Comparable<T>> T min(T a, T b) {
-        return a.compareTo(b) <= 0 ? a : b;
-    }
-
-    public static <T extends Comparable<T>> T maxNullable(T a, T b) {
-        if (a == null || b == null) {
-            return coalesce(a, b);
-        }
-        return max(a, b);
-    }
-
-    public static <T extends Comparable<T>> T minNullable(T a, T b) {
-        if (a == null || b == null) {
-            return coalesce(a, b);
-        }
-        return min(a, b);
-    }
 }

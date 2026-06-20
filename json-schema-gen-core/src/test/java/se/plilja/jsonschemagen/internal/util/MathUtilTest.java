@@ -4,11 +4,78 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Random;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class MathUtilTest {
+
+    @Nested
+    class Max {
+
+        @ParameterizedTest
+        @CsvSource({
+                "3, 5, 5",
+                "5, 3, 5",
+                "5, 5, 5",
+                "-3, 5, 5",
+        })
+        void max(Integer a, Integer b, Integer expected) {
+            // when / then
+            assertThat(MathUtil.max(a, b)).isEqualTo(expected);
+        }
+    }
+
+    @Nested
+    class Min {
+
+        @ParameterizedTest
+        @CsvSource({
+                "3, 5, 3",
+                "5, 3, 3",
+                "5, 5, 5",
+                "-3, 5, -3",
+        })
+        void min(Integer a, Integer b, Integer expected) {
+            // when / then
+            assertThat(MathUtil.min(a, b)).isEqualTo(expected);
+        }
+    }
+
+    @Nested
+    class MaxNullable {
+
+        @ParameterizedTest
+        @CsvSource(nullValues = "null", value = {
+                "3, 5, 5",
+                "5, 3, 5",
+                "null, 5, 5",
+                "3, null, 3",
+                "null, null, null",
+        })
+        void maxNullable(Integer a, Integer b, Integer expected) {
+            // when / then
+            assertThat(MathUtil.maxNullable(a, b)).isEqualTo(expected);
+        }
+    }
+
+    @Nested
+    class MinNullable {
+
+        @ParameterizedTest
+        @CsvSource(nullValues = "null", value = {
+                "3, 5, 3",
+                "5, 3, 3",
+                "null, 5, 5",
+                "3, null, 3",
+                "null, null, null",
+        })
+        void minNullable(Integer a, Integer b, Integer expected) {
+            // when / then
+            assertThat(MathUtil.minNullable(a, b)).isEqualTo(expected);
+        }
+    }
 
     @ParameterizedTest
     @CsvSource({
