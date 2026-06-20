@@ -31,18 +31,21 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             case REQUIRED_ONLY -> { }
             case ALL_FIELDS -> {
                 for (var field : schema.getOptionalFields()) {
-                    obj.put(field, context.generatorFor(schema.getProperties().get(field)).generate());
+                    var fieldSchema = schema.getProperties().get(field);
+                    obj.put(field, context.generatorFor(fieldSchema).generate());
                 }
             }
             case RANDOM -> {
                 for (var field : schema.getOptionalFields()) {
                     if (context.random().nextBoolean()) {
-                        obj.put(field, context.generatorFor(schema.getProperties().get(field)).generate());
+                        var fieldSchema = schema.getProperties().get(field);
+                        obj.put(field, context.generatorFor(fieldSchema).generate());
                     }
                 }
             }
             default -> throw new IllegalStateException("Unhandled phase: " + phase);
         }
+        padToMinProperties(obj);
         return result(obj);
     }
 
@@ -50,8 +53,25 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         var obj = new LinkedHashMap<String, Object>();
         // TODO validate that required fields exist in properties for a better error message
         for (var field : schema.getRequiredFields()) {
-            obj.put(field, context.generatorFor(schema.getProperties().get(field)).generate());
+            var fieldSchema = schema.getProperties().get(field);
+            obj.put(field, context.generatorFor(fieldSchema).generate());
         }
         return obj;
     }
+
+    private void padToMinProperties(LinkedHashMap<String, Object> obj) {
+        if (schema.getMinProperties() == null) {
+            return;
+        }
+        for (var field : schema.getOptionalFields()) {
+            if (obj.size() >= schema.getMinProperties()) {
+                break;
+            }
+            if (!obj.containsKey(field)) {
+                var fieldSchema = schema.getProperties().get(field);
+                obj.put(field, context.generatorFor(fieldSchema).generate());
+            }
+        }
+    }
+
 }

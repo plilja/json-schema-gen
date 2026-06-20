@@ -24,6 +24,8 @@ public final class ObjectSchema extends Schema {
     @Builder.Default
     private List<String> required = List.of();
 
+    private Integer minProperties;
+
     /** Either {@link Boolean} ({@code true}/{@code false}) or a {@link Schema} constraining additional property values. */
     @JsonDeserialize(using = AdditionalPropertiesDeserializer.class)
     private Object additionalProperties;

@@ -176,6 +176,36 @@ class SchemaMergerTest {
         }
 
         @Test
+        void mergesMinPropertiesTakingStricter() {
+            var a = readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"a": {"type": "string"}},
+                        "minProperties": 1
+                    }
+                    """);
+            var b = readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"a": {"type": "string"}},
+                        "minProperties": 3
+                    }
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"a": {"type": "string"}},
+                        "minProperties": 3
+                    }
+                    """));
+        }
+
+        @Test
         void additionalPropertiesFalseWinsOverAbsent() {
             var a = readSchema("""
                     {

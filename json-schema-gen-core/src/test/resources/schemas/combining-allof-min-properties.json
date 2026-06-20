@@ -1,0 +1,16 @@
+{
+    "allOf": [
+        {
+            "type": "object",
+            "properties": {
+                "a": {"type": "string"},
+                "b": {"type": "integer"},
+                "c": {"type": "string"}
+            }
+        },
+        {
+            "type": "object",
+            "minProperties": 1
+        }
+    ]
+}

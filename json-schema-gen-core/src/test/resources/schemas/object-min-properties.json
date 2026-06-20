@@ -1,0 +1,9 @@
+{
+    "type": "object",
+    "properties": {
+        "a": {"type": "string"},
+        "b": {"type": "integer"},
+        "c": {"type": "boolean"}
+    },
+    "minProperties": 2
+}

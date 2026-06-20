@@ -157,6 +157,56 @@ class ObjectGeneratorTest {
         assertThat(results).anyMatch(obj -> obj.containsKey("nickname"));
     }
 
+    @Test
+    void minPropertiesWithRequiredFieldsCountsRequiredTowardMinimum() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "name": {"type": "string"},
+                        "nickname": {"type": "string"}
+                    },
+                    "required": ["id"],
+                    "minProperties": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).hasSizeGreaterThanOrEqualTo(2);
+            assertThat(obj).containsKey("id");
+        });
+    }
+
+    @Test
+    void minPropertiesForcesOptionalFieldsToAppear() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "string"},
+                        "b": {"type": "string"},
+                        "c": {"type": "string"}
+                    },
+                    "minProperties": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).hasSizeGreaterThanOrEqualTo(2));
+    }
+
     private static ObjectGenerator objectGenerator(String json) {
         var document = SchemaParser.parse(json);
         return new ObjectGenerator(new GeneratorContext(document, new Random(42)), (ObjectSchema) document.getRoot());

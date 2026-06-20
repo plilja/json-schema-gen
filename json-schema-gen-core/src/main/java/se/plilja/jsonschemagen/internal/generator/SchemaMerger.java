@@ -97,6 +97,7 @@ final class SchemaMerger {
                     .properties(properties)
                     .required(required)
                     .additionalProperties(additionalProperties)
+                    .minProperties(maxNullable(oa.getMinProperties(), ob.getMinProperties()))
                     .build();
         } else if (a instanceof ArraySchema aa && b instanceof ArraySchema ab) {
             Schema items;
