@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import se.plilja.jsonschemagen.internal.util.EnumUtil;
 import se.plilja.jsonschemagen.internal.util.RandomUtil;
 
 /**
@@ -51,7 +52,7 @@ final class UntypedGenerator extends PhaseGenerator<UntypedGenerator.GenerationP
         if (current == GenerationPhase.CYCLE && cycleIndex < TYPE_SAMPLES.size()) {
             return GenerationPhase.CYCLE;
         }
-        return GenerationPhaseUtil.advanceToNext(current);
+        return EnumUtil.next(current);
     }
 
     @Override

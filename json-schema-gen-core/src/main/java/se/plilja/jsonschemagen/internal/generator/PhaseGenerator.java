@@ -1,5 +1,7 @@
 package se.plilja.jsonschemagen.internal.generator;
 
+import se.plilja.jsonschemagen.internal.util.EnumUtil;
+
 // TODO deserves javadoc, add later
 public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<R> {
 
@@ -8,7 +10,7 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
 
     protected PhaseGenerator(Class<E> phaseClass, GeneratorContext context) {
         this.context = context;
-        this.phase = GenerationPhaseUtil.first(phaseClass);
+        this.phase = EnumUtil.first(phaseClass);
     }
 
     public R generate() {
@@ -34,7 +36,7 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     }
 
     protected E advanceToNext(E current) {
-        return GenerationPhaseUtil.advanceToNext(current);
+        return EnumUtil.next(current);
     }
 
     /**
