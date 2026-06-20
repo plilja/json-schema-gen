@@ -2,6 +2,9 @@ package se.plilja.jsonschemagen.internal.generator.format;
 
 import java.util.List;
 
+/**
+ * Predefined {@link Alphabet} instances used by the format generators.
+ */
 final class Alphabets {
 
     static final Alphabet EN = new Alphabet(

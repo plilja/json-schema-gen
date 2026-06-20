@@ -7,6 +7,11 @@ import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.util.RandomUtil;
 
+/**
+ * Generator for schemas with an {@code anyOf} keyword. Generates values
+ * satisfying at least one branch, varying which and how many branches
+ * are satisfied across successive calls.
+ */
 final class AnyOfGenerator extends PhaseGenerator<AnyOfGenerator.GenerationPhase, Object> {
 
     private final List<Schema> subSchemas;

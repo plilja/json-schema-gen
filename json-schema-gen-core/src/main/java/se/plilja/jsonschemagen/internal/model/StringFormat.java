@@ -3,6 +3,11 @@ package se.plilja.jsonschemagen.internal.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+/**
+ * The recognised values of the JSON Schema {@code format} keyword for strings.
+ * Unrecognised format values deserialize to {@link #UNKNOWN} and are treated
+ * as plain strings by the generator.
+ */
 public enum StringFormat {
     DATE("date"),
     DATE_TIME("date-time"),

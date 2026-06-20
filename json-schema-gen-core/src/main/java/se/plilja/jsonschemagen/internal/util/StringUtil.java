@@ -3,6 +3,9 @@ package se.plilja.jsonschemagen.internal.util;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Utilities for working with strings.
+ */
 public final class StringUtil {
 
     private StringUtil() {

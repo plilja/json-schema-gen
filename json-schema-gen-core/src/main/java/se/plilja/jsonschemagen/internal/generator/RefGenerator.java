@@ -2,6 +2,11 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 
+/**
+ * Generator for schemas with a {@code $ref} keyword. A {@code $ref}
+ * replaces the schema it appears in with the referenced schema, allowing
+ * schema reuse and recursive definitions.
+ */
 final class RefGenerator implements Generator<Object> {
 
     // TODO make these configurable via the public API once a use case appears.

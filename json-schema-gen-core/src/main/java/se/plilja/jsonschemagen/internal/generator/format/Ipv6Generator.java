@@ -7,6 +7,10 @@ import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates uncompressed colon-separated IPv6 address strings for the
+ * {@code ipv6} format (RFC 4291).
+ */
 public final class Ipv6Generator extends StringFormatGenerator<Ipv6Generator.Ipv6Phase> {
 
     // Eight groups joined by ':' with leading zeros suppressed (RFC 4291 §2.2 allows this):

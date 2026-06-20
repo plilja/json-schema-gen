@@ -11,6 +11,11 @@ import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.util.RandomUtil;
 
+/**
+ * Generator for {@code "type": "string"} schemas without a recognised
+ * {@code format}. Respects {@code minLength}, {@code maxLength}, and
+ * {@code pattern} constraints.
+ */
 final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPhase, String> {
 
     private static final int PATTERN_RETRY_BUDGET = 100;

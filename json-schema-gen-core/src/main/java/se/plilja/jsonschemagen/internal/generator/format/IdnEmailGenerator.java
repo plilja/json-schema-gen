@@ -4,6 +4,9 @@ import se.plilja.jsonschemagen.internal.generator.Generator;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates internationalised email addresses for the {@code idn-email} format.
+ */
 public final class IdnEmailGenerator implements Generator<String> {
 
     private final EmailGenerator delegate;

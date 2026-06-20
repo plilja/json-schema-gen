@@ -8,6 +8,9 @@ import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates lowercase UUID strings for the {@code uuid} format.
+ */
 public final class UuidGenerator extends StringFormatGenerator<UuidGenerator.UuidPhase> {
 
     private static final int UUID_LENGTH = 36;

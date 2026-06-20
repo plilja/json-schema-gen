@@ -12,6 +12,9 @@ import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.util.RandomUtil;
 import se.plilja.jsonschemagen.internal.util.StringUtil;
 
+/**
+ * Generates DNS hostname strings for the {@code hostname} format (RFC 952/1123).
+ */
 public final class HostnameGenerator extends StringFormatGenerator<HostnameGenerator.HostnamePhase> {
 
     public enum HostnamePhase {

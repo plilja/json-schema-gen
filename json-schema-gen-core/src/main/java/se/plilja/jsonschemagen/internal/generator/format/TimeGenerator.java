@@ -11,6 +11,10 @@ import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates RFC 3339 {@code full-time} strings (e.g. {@code 14:30:00Z})
+ * for the {@code time} format.
+ */
 public final class TimeGenerator extends StringFormatGenerator<TimeGenerator.TimePhase> {
 
     // RFC 3339 time strings span "HH:MM:SSZ" (9 chars) through "HH:MM:SS±HH:MM" (14 chars).

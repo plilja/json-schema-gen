@@ -4,6 +4,10 @@ import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result
 
 import java.util.List;
 
+/**
+ * Generator for schemas with an {@code enum} keyword. An {@code enum}
+ * restricts the value to a fixed set of allowed literals.
+ */
 final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, Object> {
 
     private final List<Object> values;

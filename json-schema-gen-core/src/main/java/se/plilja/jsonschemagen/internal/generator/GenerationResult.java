@@ -1,5 +1,10 @@
 package se.plilja.jsonschemagen.internal.generator;
 
+/**
+ * Outcome of a single {@link PhaseGenerator} phase: either a
+ * {@link Present} value or a {@link Skip} signalling that the phase
+ * could not produce a value and the next phase should be tried.
+ */
 public sealed interface GenerationResult<R> {
 
     static <R> GenerationResult<R> result(R value) {

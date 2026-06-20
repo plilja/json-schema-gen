@@ -46,6 +46,11 @@ final class SchemaMerger {
         return result;
     }
 
+    /**
+     * Merges each schema in {@code schemas} with {@code other}, returning
+     * only the compatible results. Schemas that are incompatible with
+     * {@code other} are silently omitted from the returned list.
+     */
     static List<Schema> mergeEachWith(List<Schema> schemas, Schema other) {
         var result = new ArrayList<Schema>();
         for (var schema : schemas) {

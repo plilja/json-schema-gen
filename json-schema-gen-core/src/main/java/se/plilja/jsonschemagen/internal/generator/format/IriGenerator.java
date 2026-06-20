@@ -4,6 +4,10 @@ import se.plilja.jsonschemagen.internal.generator.Generator;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates internationalised absolute URI strings for the {@code iri}
+ * format (RFC 3987).
+ */
 public final class IriGenerator implements Generator<String> {
 
     private final UriGenerator delegate;

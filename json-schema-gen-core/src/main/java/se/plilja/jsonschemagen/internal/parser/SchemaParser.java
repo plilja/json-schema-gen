@@ -9,10 +9,22 @@ import java.util.Map;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 
+/**
+ * Parses a JSON Schema document into the internal model. Supports the
+ * most common keywords across drafts rather than strict compliance with
+ * any single draft version.
+ */
 public final class SchemaParser {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Parses a JSON Schema string into a {@link SchemaDocument} containing
+     * the root schema and all resolved {@code $ref} targets.
+     *
+     * @throws IllegalArgumentException if the input is not valid JSON or
+     *     contains an unresolvable {@code $ref}
+     */
     public static SchemaDocument parse(String jsonSchema) {
         try {
             var rootNode = MAPPER.readTree(jsonSchema);

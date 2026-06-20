@@ -8,6 +8,10 @@ import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates RFC 3339 {@code full-date} strings ({@code YYYY-MM-DD}) for
+ * the {@code date} format.
+ */
 public final class DateGenerator extends StringFormatGenerator<DateGenerator.DatePhase> {
 
     private static final int DATE_LENGTH = 10;

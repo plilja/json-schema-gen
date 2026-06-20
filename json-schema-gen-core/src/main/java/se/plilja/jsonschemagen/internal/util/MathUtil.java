@@ -4,6 +4,9 @@ import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 
 import java.util.Random;
 
+/**
+ * Numeric utilities.
+ */
 public final class MathUtil {
 
     private MathUtil() {
@@ -47,6 +50,10 @@ public final class MathUtil {
         return a.compareTo(b) <= 0 ? a : b;
     }
 
+    /**
+     * Returns the greater of {@code a} and {@code b}, treating {@code null}
+     * as absent (not as a bound).
+     */
     public static <T extends Comparable<T>> T maxNullable(T a, T b) {
         if (a == null || b == null) {
             return coalesce(a, b);
@@ -54,6 +61,10 @@ public final class MathUtil {
         return max(a, b);
     }
 
+    /**
+     * Returns the lesser of {@code a} and {@code b}, treating {@code null}
+     * as absent (not as a bound).
+     */
     public static <T extends Comparable<T>> T minNullable(T a, T b) {
         if (a == null || b == null) {
             return coalesce(a, b);
@@ -79,6 +90,10 @@ public final class MathUtil {
         return Math.multiplyExact(Math.abs(a) / gcd(a, b), Math.abs(b));
     }
 
+    /**
+     * Returns the LCM of {@code a} and {@code b}, treating {@code null}
+     * as absent (returns the other operand).
+     */
     public static Long lcmNullable(Long a, Long b) {
         if (a == null || b == null) {
             return a == null ? b : a;

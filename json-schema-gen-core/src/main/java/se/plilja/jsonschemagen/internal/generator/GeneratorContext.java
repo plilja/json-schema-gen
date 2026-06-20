@@ -7,7 +7,12 @@ import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 
 /**
- * Shared state through the generator tree.
+ * Shared mutable state for a single generation run.
+ *
+ * <p>A single instance is created at the root and threaded through the
+ * entire generator tree. It provides the shared random source, resolves
+ * {@code $ref} targets, and ensures that generators reaching the same
+ * schema definition share phase state rather than restarting independently.
  */
 public final class GeneratorContext {
 

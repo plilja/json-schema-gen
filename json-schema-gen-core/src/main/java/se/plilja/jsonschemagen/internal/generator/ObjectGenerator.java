@@ -6,6 +6,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 
+/**
+ * Generator for {@code "type": "object"} schemas. Varies which
+ * optional fields are included across successive calls.
+ */
 final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPhase, Map<String, Object>> {
 
     private final ObjectSchema schema;

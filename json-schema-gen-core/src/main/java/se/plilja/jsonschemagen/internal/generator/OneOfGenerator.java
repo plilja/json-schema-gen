@@ -6,6 +6,10 @@ import java.util.List;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.Schema;
 
+/**
+ * Generator for schemas with a {@code oneOf} keyword. A {@code oneOf}
+ * requires that the value satisfies exactly one of the listed sub-schemas.
+ */
 final class OneOfGenerator extends PhaseGenerator<OneOfGenerator.GenerationPhase, Object> {
 
     private final List<Schema> subSchemas;

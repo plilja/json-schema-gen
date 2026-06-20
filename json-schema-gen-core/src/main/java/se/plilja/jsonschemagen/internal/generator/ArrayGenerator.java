@@ -10,6 +10,10 @@ import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 
+/**
+ * Generator for {@code "type": "array"} schemas. Varies array length
+ * across successive calls to cover the allowed range.
+ */
 final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase, List<Object>> {
 
     private static final int DEFAULT_LENGTH_BUFFER = 5;

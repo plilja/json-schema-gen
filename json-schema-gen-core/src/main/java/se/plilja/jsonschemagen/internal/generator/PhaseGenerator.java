@@ -2,7 +2,14 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import se.plilja.jsonschemagen.internal.util.EnumUtil;
 
-// TODO deserves javadoc, add later
+/**
+ * Generator that walks through a sequence of named phases.
+ *
+ * <p>Each call to {@link #generate()} tries the current phase via
+ * {@link #generatePhase}. If the phase returns {@link GenerationResult.Skip},
+ * the generator advances to the next phase and retries until a phase
+ * produces a value.
+ */
 public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<R> {
 
     protected final GeneratorContext context;

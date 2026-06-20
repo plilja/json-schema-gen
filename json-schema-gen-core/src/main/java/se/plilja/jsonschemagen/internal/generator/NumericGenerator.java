@@ -5,6 +5,12 @@ import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
 
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 
+/**
+ * Generator for {@code "type": "integer"} schemas. Note that JSON Schema
+ * integers are arbitrary-precision whole numbers, not bounded like Java's
+ * {@code int} or {@code long}; this generator uses {@code long} as its
+ * value type.
+ */
 final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationPhase, Long> {
 
     // 2^53 - 1: above this, multipleOf checks done in IEEE 754 double precision are unreliable.

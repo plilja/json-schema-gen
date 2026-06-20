@@ -27,6 +27,10 @@ public final class SchemaDocument {
         return root;
     }
 
+    /**
+     * Returns the schema targeted by {@code ref}, or {@code null} if the
+     * ref was not found in this document.
+     */
     public Schema resolveRef(String ref) {
         return refs.get(ref);
     }

@@ -28,7 +28,10 @@ import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
-// TODO consider naming and javadoc. The name is confusingly close to JsonSchemaGenerator
+/**
+ * Internal entry point for value generation. Selects the appropriate
+ * type-specific {@link Generator} for a schema and delegates to it.
+ */
 public final class JsonGenerator {
 
     private final Generator<?> delegate;

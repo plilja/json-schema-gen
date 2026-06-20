@@ -10,6 +10,9 @@ import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.generator.PhaseGenerator;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Base class for generators of string schemas with a recognised {@code format}.
+ */
 abstract class StringFormatGenerator<E extends Enum<E>> extends PhaseGenerator<E, String> {
 
     protected static final int RETRY_BUDGET = 100;

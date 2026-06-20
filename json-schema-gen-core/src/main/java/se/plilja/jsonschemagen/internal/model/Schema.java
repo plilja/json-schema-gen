@@ -11,6 +11,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+/**
+ * Base class of the JSON Schema model hierarchy.
+ *
+ * <p>Each concrete subclass represents one JSON Schema {@code type} keyword
+ * value (string, integer, boolean, null, object, array) and carries the
+ * type-specific constraint fields. Cross-cutting keywords that can appear
+ * on any schema ({@code const}, {@code enum}, {@code $ref}, and the
+ * combining keywords {@code oneOf}/{@code anyOf}/{@code allOf}) are fields
+ * on this base class.
+ */
 @Getter
 @EqualsAndHashCode
 @SuperBuilder(toBuilder = true)

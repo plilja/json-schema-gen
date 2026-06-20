@@ -3,6 +3,10 @@ package se.plilja.jsonschemagen.internal.generator;
 import java.util.ArrayList;
 import se.plilja.jsonschemagen.internal.model.Schema;
 
+/**
+ * Generator for schemas with an {@code allOf} keyword. Generates values
+ * satisfying all branches simultaneously.
+ */
 final class AllOfGenerator implements Generator<Object> {
 
     private final GeneratorContext context;

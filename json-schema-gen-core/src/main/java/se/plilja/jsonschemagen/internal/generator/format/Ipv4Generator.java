@@ -8,6 +8,9 @@ import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates dotted-quad IPv4 address strings for the {@code ipv4} format.
+ */
 public final class Ipv4Generator extends StringFormatGenerator<Ipv4Generator.Ipv4Phase> {
 
     // Dotted-quad: "0.0.0.0" (7) through "255.255.255.255" (15).

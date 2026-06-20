@@ -12,6 +12,10 @@ import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 
+/**
+ * Generates RFC 3339 {@code date-time} strings (e.g.
+ * {@code 2025-01-15T14:30:00Z}) for the {@code date-time} format.
+ */
 public final class DateTimeGenerator extends StringFormatGenerator<DateTimeGenerator.DateTimePhase> {
 
     // RFC 3339 date-time strings span "YYYY-MM-DDTHH:MM:SSZ" (20 chars) through "YYYY-MM-DDTHH:MM:SS±HH:MM" (25 chars).
