@@ -22,7 +22,7 @@ abstract class StringFormatGenerator<E extends Enum<E>> extends PhaseGenerator<E
         this.schema = schema;
         this.compiledPattern = schema.getPattern() != null ? Pattern.compile(schema.getPattern()) : null;
         if (schema.getMinLength() != null && schema.getMaxLength() != null
-            && schema.getMinLength() > schema.getMaxLength()) {
+                && schema.getMinLength() > schema.getMaxLength()) {
             throw new UnsatisfiableSchemaException(
                 "minLength (" + schema.getMinLength() + ") is greater than maxLength (" + schema.getMaxLength() + ")");
         }

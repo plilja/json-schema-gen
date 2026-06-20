@@ -41,6 +41,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
                     }
                 }
             }
+            default -> throw new IllegalStateException("Unhandled phase: " + phase);
         }
         return result(obj);
     }

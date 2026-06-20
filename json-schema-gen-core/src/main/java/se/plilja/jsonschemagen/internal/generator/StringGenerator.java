@@ -1,15 +1,15 @@
 package se.plilja.jsonschemagen.internal.generator;
 
-import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
+import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 
 import com.github.curiousoddman.rgxgen.RgxGen;
 import com.github.curiousoddman.rgxgen.config.RgxGenOption;
 import com.github.curiousoddman.rgxgen.config.RgxGenProperties;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
-import se.plilja.jsonschemagen.internal.util.RandomUtil;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
+import se.plilja.jsonschemagen.internal.util.RandomUtil;
 
 final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPhase, String> {
 

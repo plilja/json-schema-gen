@@ -1,16 +1,16 @@
 package se.plilja.jsonschemagen.internal.generator.format;
 
-import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
+import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 
 import java.util.List;
 import java.util.Random;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
+import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.util.RandomUtil;
 import se.plilja.jsonschemagen.internal.util.StringUtil;
-import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 public final class HostnameGenerator extends StringFormatGenerator<HostnameGenerator.HostnamePhase> {
 

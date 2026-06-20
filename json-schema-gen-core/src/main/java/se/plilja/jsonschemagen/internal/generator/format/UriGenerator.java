@@ -7,8 +7,8 @@ import java.util.Random;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
-import se.plilja.jsonschemagen.internal.util.RandomUtil;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
+import se.plilja.jsonschemagen.internal.util.RandomUtil;
 
 /**
  * Emits values for the {@code uri} format (RFC 3986 — absolute URIs only).

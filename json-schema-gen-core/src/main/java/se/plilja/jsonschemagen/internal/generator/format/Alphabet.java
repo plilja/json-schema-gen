@@ -7,7 +7,7 @@ import java.util.List;
  */
 record Alphabet(String chars, List<String> tlds) {
 
-  String firstChar() {
-    return chars.substring(0, 1);
-  }
+    String firstChar() {
+        return chars.substring(0, 1);
+    }
 }

@@ -36,9 +36,10 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
 
     @Override
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
-        return result(switch (phase) {
+        var value = switch (phase) {
             case EXHAUSTIVE -> values.get(index);
             case RANDOM -> values.get(context.random().nextInt(values.size()));
-        });
+        };
+        return result(value);
     }
 }

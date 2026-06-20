@@ -19,10 +19,11 @@ final class BooleanGenerator extends PhaseGenerator<BooleanGenerator.GenerationP
 
     @Override
     protected GenerationResult<Boolean> generatePhase(GenerationPhase phase) {
-        return result(switch (phase) {
+        boolean value = switch (phase) {
             case FALSE -> false;
             case TRUE -> true;
             case RANDOM -> context.random().nextBoolean();
-        });
+        };
+        return result(value);
     }
 }

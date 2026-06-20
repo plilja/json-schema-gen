@@ -1,8 +1,8 @@
 package se.plilja.jsonschemagen.internal.generator;
 
-import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
+import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 
 import java.util.ArrayList;
 import java.util.List;

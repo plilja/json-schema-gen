@@ -1,8 +1,8 @@
 package se.plilja.jsonschemagen.internal.generator.format;
 
-import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
+import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.util.MathUtil.clampRange;
 
 import java.util.List;
@@ -10,9 +10,9 @@ import java.util.Random;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GenerationResult;
 import se.plilja.jsonschemagen.internal.generator.GeneratorContext;
+import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.util.MathUtil;
 import se.plilja.jsonschemagen.internal.util.RandomUtil;
-import se.plilja.jsonschemagen.internal.model.StringSchema;
 
 /**
  * Emits values for the {@code uri-reference} format (RFC 3986 §4.1).
