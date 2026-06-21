@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
+import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.StringFormat;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
@@ -290,6 +292,135 @@ class SchemaParserTest {
         assertThat(root.getOneOf()).hasSize(2);
         assertThat(root.getOneOf().get(0)).isInstanceOf(StringSchema.class);
         assertThat(root.getOneOf().get(1)).isInstanceOf(NullSchema.class);
+    }
+
+    @Test
+    void dependentRequiredKeywordIsParsedDirectly() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "foo": { "type": "string" },
+                        "bar": { "type": "integer" }
+                    },
+                    "dependentRequired": {
+                        "foo": ["bar"]
+                    }
+                }
+                """);
+
+        // then
+        var root = (ObjectSchema) document.getRoot();
+        assertThat(root.getDependentRequired())
+                .containsEntry("foo", List.of("bar"));
+    }
+
+    @Test
+    void dependentSchemasKeywordIsParsedDirectly() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "foo": { "type": "string" }
+                    },
+                    "dependentSchemas": {
+                        "foo": {
+                            "type": "object",
+                            "properties": {
+                                "bar": { "type": "integer" }
+                            },
+                            "required": ["bar"]
+                        }
+                    }
+                }
+                """);
+
+        // then
+        var root = (ObjectSchema) document.getRoot();
+        assertThat(root.getDependentSchemas()).containsKey("foo");
+        var depSchema = (ObjectSchema) root.getDependentSchemas().get("foo");
+        assertThat(depSchema.getRequired()).containsExactly("bar");
+    }
+
+    @Test
+    void draft7DependenciesSchemaFormIsNormalisedToDependentSchemas() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "foo": { "type": "string" }
+                    },
+                    "dependencies": {
+                        "foo": {
+                            "properties": {
+                                "bar": { "type": "integer" }
+                            },
+                            "required": ["bar"]
+                        }
+                    }
+                }
+                """);
+
+        // then
+        var root = (ObjectSchema) document.getRoot();
+        assertThat(root.getDependentSchemas()).containsKey("foo");
+        var depSchema = (ObjectSchema) root.getDependentSchemas().get("foo");
+        assertThat(depSchema.getRequired()).containsExactly("bar");
+    }
+
+    @Test
+    void draft7DependenciesArrayFormIsNormalisedToDependentRequired() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "foo": { "type": "string" },
+                        "bar": { "type": "integer" }
+                    },
+                    "dependencies": {
+                        "foo": ["bar"]
+                    }
+                }
+                """);
+
+        // then
+        var root = (ObjectSchema) document.getRoot();
+        assertThat(root.getDependentRequired())
+                .containsEntry("foo", List.of("bar"));
+    }
+
+    @Test
+    void draft7DependenciesMixedFormIsSplitCorrectly() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": { "type": "string" },
+                        "b": { "type": "string" },
+                        "c": { "type": "string" }
+                    },
+                    "dependencies": {
+                        "a": ["b"],
+                        "b": {
+                            "properties": { "c": { "type": "string" } },
+                            "required": ["c"]
+                        }
+                    }
+                }
+                """);
+
+        // then
+        var root = (ObjectSchema) document.getRoot();
+        assertThat(root.getDependentRequired())
+                .containsEntry("a", List.of("b"));
+        assertThat(root.getDependentSchemas()).containsKey("b");
+        var depSchema = (ObjectSchema) root.getDependentSchemas().get("b");
+        assertThat(depSchema.getRequired()).containsExactly("c");
     }
 
     @Test
