@@ -1,11 +1,13 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
@@ -205,6 +207,74 @@ class ObjectGeneratorTest {
 
         // then
         assertThat(results).allSatisfy(obj -> assertThat(obj).hasSizeGreaterThanOrEqualTo(2));
+    }
+
+    @Test
+    void requiredFalseSchemaPropertyThrows() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "impossible": false
+                    },
+                    "required": ["name", "impossible"]
+                }
+                """);
+
+        // when / then
+        assertThatThrownBy(generator::generate)
+                .isInstanceOf(UnsatisfiableSchemaException.class);
+    }
+
+    @Test
+    void minPropertiesSkipsUnsatisfiableWhenPadding() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "string"},
+                        "b": {"type": "string"},
+                        "c": {"type": "string"},
+                        "d": {"type": "string"},
+                        "forbidden": false
+                    },
+                    "minProperties": 4
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).hasSizeGreaterThanOrEqualTo(4);
+            assertThat(obj).doesNotContainKey("forbidden");
+        });
+    }
+
+    @Test
+    void optionalFalseSchemaPropertyIsNeverIncluded() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "forbidden": false
+                    },
+                    "required": ["name"]
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).doesNotContainKey("forbidden"));
     }
 
     private static ObjectGenerator objectGenerator(String json) {
