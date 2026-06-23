@@ -20,6 +20,7 @@ import lombok.experimental.SuperBuilder;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class ObjectSchema extends Schema {
 
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     @Builder.Default
     private Map<String, Schema> properties = Map.of();
 
@@ -56,6 +57,7 @@ public final class ObjectSchema extends Schema {
      * Draft 2019-09+ sub-schemas that apply when a given key is present.
      */
     @JsonProperty
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     @Getter(lombok.AccessLevel.NONE)
     @Builder.Default
     private Map<String, Schema> dependentSchemas = Map.of();

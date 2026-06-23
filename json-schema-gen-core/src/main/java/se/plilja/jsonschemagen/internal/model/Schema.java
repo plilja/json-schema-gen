@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -35,7 +36,9 @@ import lombok.experimental.SuperBuilder;
         @JsonSubTypes.Type(value = ObjectSchema.class, name = "object"),
         @JsonSubTypes.Type(value = ArraySchema.class, name = "array"),
 })
-public abstract sealed class Schema permits StringSchema, NumericSchema, BooleanSchema, NullSchema, ObjectSchema, ArraySchema, UntypedSchema {
+public abstract sealed class Schema
+        permits StringSchema, NumericSchema, BooleanSchema, NullSchema, ObjectSchema, ArraySchema,
+        UntypedSchema, UnsatisfiableSchema {
 
     @JsonProperty("const")
     private Object constValue;
@@ -46,10 +49,13 @@ public abstract sealed class Schema permits StringSchema, NumericSchema, Boolean
     @JsonProperty("$ref")
     private String ref;
 
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     private List<Schema> oneOf;
 
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     private List<Schema> anyOf;
 
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     private List<Schema> allOf;
 
     public abstract SchemaBuilder<?, ?> toBuilder();

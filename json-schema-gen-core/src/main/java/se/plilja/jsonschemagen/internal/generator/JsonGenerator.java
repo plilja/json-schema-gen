@@ -1,6 +1,7 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import java.util.Random;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.format.DateGenerator;
 import se.plilja.jsonschemagen.internal.generator.format.DateTimeGenerator;
 import se.plilja.jsonschemagen.internal.generator.format.EmailGenerator;
@@ -26,6 +27,7 @@ import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
+import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
 /**
@@ -76,6 +78,8 @@ public final class JsonGenerator {
             case ObjectSchema s -> new ObjectGenerator(context, s);
             case ArraySchema s -> new ArrayGenerator(context, s);
             case UntypedSchema ignored -> new UntypedGenerator(context);
+            case UnsatisfiableSchema ignored -> throw new UnsatisfiableSchemaException(
+                    "Cannot generate a value for a false schema");
         };
     }
 

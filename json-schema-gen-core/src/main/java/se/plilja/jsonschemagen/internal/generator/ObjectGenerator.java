@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
+import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.util.GraphUtil;
 
 /**
@@ -48,6 +49,8 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
                 include = true;
             } else if (schema.getRequired().contains(property)) {
                 include = true;
+            } else if (schema.getProperties().get(property) instanceof UnsatisfiableSchema) {
+                include = false;
             } else {
                 // Optional property
                 include = switch (phase) {
@@ -94,7 +97,10 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             if (selectedProperties.size() >= schema.getMinProperties()) {
                 break;
             }
-            selectedProperties.add(order.get(i));
+            var property = order.get(i);
+            if (!(schema.getProperties().get(property) instanceof UnsatisfiableSchema)) {
+                selectedProperties.add(property);
+            }
         }
     }
 
