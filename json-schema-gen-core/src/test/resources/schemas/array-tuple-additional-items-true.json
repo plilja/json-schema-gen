@@ -1,0 +1,9 @@
+{
+    "type": "array",
+    "items": [
+        {"type": "string"},
+        {"type": "integer"}
+    ],
+    "additionalItems": true,
+    "minItems": 3
+}

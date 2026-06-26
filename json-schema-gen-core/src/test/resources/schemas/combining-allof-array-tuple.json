@@ -1,0 +1,16 @@
+{
+    "allOf": [
+        {
+            "type": "array",
+            "items": [
+                {"type": "string", "minLength": 1},
+                {"type": "integer", "minimum": 0}
+            ],
+            "additionalItems": false
+        },
+        {
+            "type": "array",
+            "minItems": 2
+        }
+    ]
+}
