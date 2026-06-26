@@ -33,7 +33,7 @@ public final class ObjectSchema extends Schema {
      * Either {@link Boolean} ({@code true}/{@code false}) or a
      * {@link Schema} constraining additional property values.
      */
-    @JsonDeserialize(using = AdditionalPropertiesDeserializer.class)
+    @JsonDeserialize(using = BooleanOrSchemaDeserializer.class)
     private Object additionalProperties;
 
     /**

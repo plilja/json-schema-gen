@@ -7,7 +7,9 @@ import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
+import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
+import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 class SchemaMergerTest {
@@ -410,6 +412,153 @@ class SchemaMergerTest {
             assertThat(merged).isEqualTo(readSchema("""
                     {"type": "array", "contains": {"type": "string", "minLength": 3, "maxLength": 10}}
                     """));
+        }
+
+        @Test
+        void mergesTuplePrefixSchemasPairwise() {
+            var a = readSchema("""
+                    {"type": "array", "items": [
+                        {"type": "string", "minLength": 3},
+                        {"type": "integer"}
+                    ]}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "items": [
+                        {"type": "string", "maxLength": 10},
+                        {"type": "integer", "minimum": 0}
+                    ]}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {"type": "array", "prefixItems": [
+                        {"type": "string", "minLength": 3, "maxLength": 10},
+                        {"type": "integer", "minimum": 0}
+                    ]}
+                    """));
+        }
+
+        @Test
+        void mergesPrefixItemsSyntaxPairwise() {
+            var a = readSchema("""
+                    {"type": "array", "prefixItems": [
+                        {"type": "string", "minLength": 1}
+                    ], "items": false}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "prefixItems": [
+                        {"type": "string", "maxLength": 10}
+                    ], "items": false}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            var expected = readSchema("""
+                    {"type": "array", "prefixItems": [
+                        {"type": "string", "minLength": 1, "maxLength": 10}
+                    ], "items": false, "additionalItems": false}
+                    """);
+            assertThat(merged).isEqualTo(expected);
+        }
+
+        @Test
+        void mergesAdditionalItemsFalseWins() {
+            var a = readSchema("""
+                    {"type": "array", "items": [{"type": "string"}], "additionalItems": false}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "items": [{"type": "string"}], "additionalItems": true}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {"type": "array", "prefixItems": [{"type": "string"}], "additionalItems": false}
+                    """));
+        }
+
+        @Test
+        void mergesAdditionalItemsSchemas() {
+            var a = readSchema("""
+                    {"type": "array", "items": [{"type": "string"}],
+                     "additionalItems": {"type": "integer", "minimum": 0}}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "items": [{"type": "string"}],
+                     "additionalItems": {"type": "integer", "maximum": 100}}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            var mergedArray = (ArraySchema) merged;
+            assertThat(mergedArray.getItemSchema()).isEqualTo(readSchema("""
+                    {"type": "integer", "minimum": 0, "maximum": 100}
+                    """));
+            assertThat(mergedArray.areAdditionalItemsAllowed()).isTrue();
+        }
+
+        @Test
+        void tupleOnOneSidePreserved() {
+            var a = readSchema("""
+                    {"type": "array", "items": [{"type": "string"}, {"type": "integer"}]}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "minItems": 2}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {"type": "array", "prefixItems": [{"type": "string"}, {"type": "integer"}],
+                     "minItems": 2}
+                    """));
+        }
+
+        @Test
+        void mergesItemsFalsePreservesUnsatisfiable() {
+            var a = readSchema("""
+                    {"type": "array", "items": false}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "items": false}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isInstanceOf(ArraySchema.class);
+            assertThat(((ArraySchema) merged).getItemSchema())
+                    .isInstanceOf(UnsatisfiableSchema.class);
+        }
+
+        @Test
+        void mergesItemsFalseWithItemsSchemaUnsatisfiableWins() {
+            var a = readSchema("""
+                    {"type": "array", "items": false}
+                    """);
+            var b = readSchema("""
+                    {"type": "array", "items": {"type": "string"}}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isInstanceOf(ArraySchema.class);
+            assertThat(((ArraySchema) merged).getItemSchema())
+                    .isInstanceOf(UnsatisfiableSchema.class);
         }
 
         @Test

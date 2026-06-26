@@ -177,6 +177,200 @@ class ArrayGeneratorTest {
                 assertThat(arr).contains("required-value"));
     }
 
+    @Test
+    void draft7TupleProducesCorrectlyTypedPositionalElements() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "items": [
+                        {"type": "string"},
+                        {"type": "integer"}
+                    ],
+                    "minItems": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSizeGreaterThanOrEqualTo(2);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            assertThat(arr.get(1)).isInstanceOf(Number.class);
+        });
+    }
+
+    @Test
+    void containsDoesNotOverrideTuplePositions() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "items": [
+                        {"type": "string"},
+                        {"type": "integer"}
+                    ],
+                    "contains": {"const": true},
+                    "minItems": 3
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSizeGreaterThanOrEqualTo(3);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            assertThat(arr.get(1)).isInstanceOf(Number.class);
+            assertThat(arr).contains(true);
+        });
+    }
+
+    @Test
+    void prefixItemsProducesCorrectlyTypedPositionalElements() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "prefixItems": [
+                        {"type": "string"},
+                        {"type": "integer"},
+                        {"type": "boolean"}
+                    ],
+                    "minItems": 3
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSizeGreaterThanOrEqualTo(3);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            assertThat(arr.get(1)).isInstanceOf(Number.class);
+            assertThat(arr.get(2)).isInstanceOf(Boolean.class);
+        });
+    }
+
+    @Test
+    void additionalItemsFalseCapsArrayAtTupleSize() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "items": [
+                        {"type": "string"},
+                        {"type": "integer"}
+                    ],
+                    "additionalItems": false,
+                    "minItems": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSize(2);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            assertThat(arr.get(1)).isInstanceOf(Number.class);
+        });
+    }
+
+    @Test
+    void prefixItemsWithItemsFalseCapsArrayAtTupleSize() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "prefixItems": [
+                        {"type": "string"},
+                        {"type": "integer"}
+                    ],
+                    "items": false,
+                    "minItems": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSize(2);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            assertThat(arr.get(1)).isInstanceOf(Number.class);
+        });
+    }
+
+    @Test
+    void additionalItemsSchemaGeneratesTypedExtraElements() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "items": [
+                        {"type": "string"}
+                    ],
+                    "additionalItems": {"type": "boolean"},
+                    "minItems": 3
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSizeGreaterThanOrEqualTo(3);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            for (int i = 1; i < arr.size(); i++) {
+                assertThat(arr.get(i)).isInstanceOf(Boolean.class);
+            }
+        });
+    }
+
+    @Test
+    void minItemsLargerThanTupleForcesGenerationPastPrefix() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "prefixItems": [
+                        {"type": "string"},
+                        {"type": "integer"}
+                    ],
+                    "items": {"type": "boolean"},
+                    "minItems": 4
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 50)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> {
+            assertThat(arr).hasSizeGreaterThanOrEqualTo(4);
+            assertThat(arr.get(0)).isInstanceOf(String.class);
+            assertThat(arr.get(1)).isInstanceOf(Number.class);
+            for (int i = 2; i < arr.size(); i++) {
+                assertThat(arr.get(i)).isInstanceOf(Boolean.class);
+            }
+        });
+    }
+
     private static ArrayGenerator arrayGenerator(String json) {
         var document = SchemaParser.parse(json);
         return new ArrayGenerator(new GeneratorContext(document, new Random(42)), (ArraySchema) document.getRoot());

@@ -157,6 +157,12 @@ Use `// when` and `// then` comments to separate test phases.
   before coding. The user pointing out a problem or asking "what about
   X?" means "revise the plan", not "go fix it". Only start coding after
   an explicit go-ahead.
+- Start with the simplest implementation that passes the tests. Add
+  complexity (helper methods, guards, extra abstractions) only when a
+  failing test or concrete scenario forces it — not preemptively.
+- When a fix could go in two places, fix the root cause, not the
+  symptom. A defensive check that filters out bad data is a sign the
+  producer should be fixed instead.
 - Do not introduce new patterns or invent new abstractions (factories,
   builders, strategy/visitor shapes, helper layers, new base classes,
   new interfaces, generic wrappers, etc.) unless the ticket explicitly

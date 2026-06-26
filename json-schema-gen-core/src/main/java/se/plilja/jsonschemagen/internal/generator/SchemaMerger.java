@@ -14,6 +14,7 @@ import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
+import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 import se.plilja.jsonschemagen.internal.util.MathUtil;
 
@@ -67,7 +68,9 @@ final class SchemaMerger {
         rejectUnsupportedComposition(a, b);
 
         Schema merged;
-        if (b instanceof UntypedSchema) {
+        if (a instanceof UnsatisfiableSchema || b instanceof UnsatisfiableSchema) {
+            merged = new UnsatisfiableSchema();
+        } else if (b instanceof UntypedSchema) {
             merged = a.toBuilder().build();
         } else if (a instanceof UntypedSchema) {
             merged = b.toBuilder().build();
@@ -97,7 +100,7 @@ final class SchemaMerger {
             var required = Stream.concat(oa.getRequired().stream(), ob.getRequired().stream())
                     .distinct()
                     .toList();
-            var additionalProperties = mergeAdditionalProperties(oa.getAdditionalProperties(), ob.getAdditionalProperties());
+            var additionalProperties = mergeBooleanOrSchema(oa.getAdditionalProperties(), ob.getAdditionalProperties());
             merged = ObjectSchema.builder()
                     .properties(properties)
                     .required(required)
@@ -106,10 +109,10 @@ final class SchemaMerger {
                     .build();
         } else if (a instanceof ArraySchema aa && b instanceof ArraySchema ab) {
             Schema items;
-            if (aa.getItems() != null && ab.getItems() != null) {
-                items = mergeTwoSchemas(aa.getItems(), ab.getItems());
+            if (aa.getItemSchema() != null && ab.getItemSchema() != null) {
+                items = mergeTwoSchemas(aa.getItemSchema(), ab.getItemSchema());
             } else {
-                items = coalesce(aa.getItems(), ab.getItems());
+                items = coalesce(aa.getItemSchema(), ab.getItemSchema());
             }
             Schema contains;
             if (aa.getContains() != null && ab.getContains() != null) {
@@ -117,8 +120,27 @@ final class SchemaMerger {
             } else {
                 contains = coalesce(aa.getContains(), ab.getContains());
             }
+            var prefixA = aa.getPrefixSchemas();
+            var prefixB = ab.getPrefixSchemas();
+            List<Schema> mergedPrefix = null;
+            if (!prefixA.isEmpty() || !prefixB.isEmpty()) {
+                int len = Math.max(prefixA.size(), prefixB.size());
+                mergedPrefix = new ArrayList<>();
+                for (int i = 0; i < len; i++) {
+                    var pa = i < prefixA.size() ? prefixA.get(i) : null;
+                    var pb = i < prefixB.size() ? prefixB.get(i) : null;
+                    if (pa != null && pb != null) {
+                        mergedPrefix.add(mergeTwoSchemas(pa, pb));
+                    } else {
+                        mergedPrefix.add(coalesce(pa, pb));
+                    }
+                }
+            }
+            var mergedAdditionalItems = aa.areAdditionalItemsAllowed() && ab.areAdditionalItemsAllowed() ? null : Boolean.FALSE;
             merged = ArraySchema.builder()
                     .items(items)
+                    .prefixItems(mergedPrefix)
+                    .additionalItems(mergedAdditionalItems)
                     .contains(contains)
                     .minItems(maxNullable(aa.getMinItems(), ab.getMinItems()))
                     .maxItems(minNullable(aa.getMaxItems(), ab.getMaxItems()))
@@ -153,12 +175,12 @@ final class SchemaMerger {
     }
 
     /**
-     * Merges two {@code additionalProperties} values. Each value is either
-     * {@link Boolean} or {@link Schema}. {@code false} wins over everything;
-     * a {@link Schema} wins over {@code true} (more restrictive); two schemas
-     * are merged with {@link #mergeTwoSchemas}.
+     * Merges two values that are either {@link Boolean} or {@link Schema}.
+     * {@code false} wins over everything; a {@link Schema} wins over
+     * {@code true} (more restrictive); two schemas are merged with
+     * {@link #mergeTwoSchemas}.
      */
-    private static Object mergeAdditionalProperties(Object a, Object b) {
+    private static Object mergeBooleanOrSchema(Object a, Object b) {
         if (Boolean.FALSE.equals(a) || Boolean.FALSE.equals(b)) {
             return Boolean.FALSE;
         }

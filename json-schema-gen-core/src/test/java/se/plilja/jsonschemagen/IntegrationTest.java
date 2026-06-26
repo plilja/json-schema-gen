@@ -1,16 +1,15 @@
 package se.plilja.jsonschemagen;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
+import com.networknt.schema.SpecVersion.VersionFlag;
+import com.networknt.schema.SpecVersionDetector;
 import com.networknt.schema.ValidationMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import se.plilja.jsonschemagen.api.JsonSchemaGenerator;
 
 import java.io.IOException;
@@ -19,7 +18,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -29,9 +30,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IntegrationTest {
     private static final int ITERATIONS = 250;
     private static final long DEFAULT_SEED = 42L;
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private static final JsonSchemaFactory JSON_SCHEMA_FACTORY =
-            JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
+    private static final Map<VersionFlag, JsonSchemaFactory> FACTORIES = new EnumMap<>(VersionFlag.class);
+
+    static {
+        for (var flag : VersionFlag.values()) {
+            FACTORIES.put(flag, JsonSchemaFactory.getInstance(flag));
+        }
+    }
 
     static List<Arguments> parameters() throws IOException, URISyntaxException {
         long seed = resolveSeed();
@@ -71,14 +78,22 @@ class IntegrationTest {
 
     @ParameterizedTest(name = "{0} invocation={2}")
     @MethodSource("parameters")
-    void generatesValidJson(String schemaName, String schemaContent, int invocation, String json) {
+    void generatesValidJson(String schemaName, String schemaContent, int invocation, String json) throws Exception {
         // when
-        Set<ValidationMessage> errors = JSON_SCHEMA_FACTORY.getSchema(schemaContent)
+        var factory = schemaFactoryFor(schemaContent);
+        Set<ValidationMessage> errors = factory.getSchema(schemaContent)
                 .validate(json, InputFormat.JSON);
 
         // then
         assertThat(errors)
                 .as("%s invocation=%d", schemaName, invocation)
                 .isEmpty();
+    }
+
+    private static JsonSchemaFactory schemaFactoryFor(String schemaContent) throws Exception {
+        var tree = MAPPER.readTree(schemaContent);
+        var version = SpecVersionDetector.detectOptionalVersion(tree, false)
+                .orElse(VersionFlag.V7);
+        return FACTORIES.get(version);
     }
 }

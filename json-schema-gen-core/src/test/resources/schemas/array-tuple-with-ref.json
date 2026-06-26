@@ -1,0 +1,13 @@
+{
+    "type": "array",
+    "items": [
+        {"$ref": "#/definitions/name"},
+        {"type": "integer"}
+    ],
+    "additionalItems": {"$ref": "#/definitions/flag"},
+    "minItems": 3,
+    "definitions": {
+        "name": {"type": "string", "minLength": 1},
+        "flag": {"type": "boolean"}
+    }
+}
