@@ -50,20 +50,20 @@ class IntegrationTest {
             schemaFiles = files.filter(p -> p.toString().endsWith(".json")).toList();
         }
         return schemaFiles.parallelStream()
+                .filter(p -> !Files.isDirectory(p))
                 .flatMap(p -> {
-                    String name = p.getFileName().toString();
-                    String content;
                     try {
-                        content = Files.readString(p);
+                        var name = p.getFileName().toString();
+                        var content = Files.readString(p);
+                        var gen = JsonSchemaGenerator.of(p.toFile()).withSeed(seed);
+                        var args = new ArrayList<Arguments>(ITERATIONS);
+                        for (int i = 1; i <= ITERATIONS; i++) {
+                            args.add(Arguments.of(name, content, p, i, gen.generate()));
+                        }
+                        return args.stream();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                    var gen = JsonSchemaGenerator.of(content).withSeed(seed);
-                    var args = new ArrayList<Arguments>(ITERATIONS);
-                    for (int i = 1; i <= ITERATIONS; i++) {
-                        args.add(Arguments.of(name, content, i, gen.generate()));
-                    }
-                    return args.stream();
                 })
                 .toList();
     }
@@ -76,12 +76,12 @@ class IntegrationTest {
         return Long.parseLong(value);
     }
 
-    @ParameterizedTest(name = "{0} invocation={2}")
+    @ParameterizedTest(name = "{0} invocation={3}")
     @MethodSource("parameters")
-    void generatesValidJson(String schemaName, String schemaContent, int invocation, String json) throws Exception {
+    void generatesValidJson(String schemaName, String schemaContent, Path schemaPath, int invocation, String json) throws Exception {
         // when
         var factory = schemaFactoryFor(schemaContent);
-        Set<ValidationMessage> errors = factory.getSchema(schemaContent)
+        Set<ValidationMessage> errors = factory.getSchema(schemaPath.toUri())
                 .validate(json, InputFormat.JSON);
 
         // then
