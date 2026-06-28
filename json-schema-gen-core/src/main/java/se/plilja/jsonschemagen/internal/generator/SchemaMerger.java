@@ -1,5 +1,6 @@
 package se.plilja.jsonschemagen.internal.generator;
 
+import static se.plilja.jsonschemagen.internal.util.CollectionUtil.concat;
 import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 import static se.plilja.jsonschemagen.internal.util.MathUtil.maxNullable;
 import static se.plilja.jsonschemagen.internal.util.MathUtil.minNullable;
@@ -71,7 +72,6 @@ final class SchemaMerger {
         if (b == null) {
             return a;
         }
-        rejectUnsupportedComposition(a, b);
 
         Schema merged;
         if (a instanceof UnsatisfiableSchema || b instanceof UnsatisfiableSchema) {
@@ -100,9 +100,20 @@ final class SchemaMerger {
             throw new UnsatisfiableSchemaException(
                     "const value " + constValue + " is not in enum " + enumValues);
         }
+        if (a.getOneOf() != null && b.getOneOf() != null) {
+            throw new IllegalArgumentException(
+                    "Merging two schemas that both carry oneOf is not supported");
+        }
+        if (a.getAnyOf() != null && b.getAnyOf() != null) {
+            throw new IllegalArgumentException(
+                    "Merging two schemas that both carry anyOf is not supported");
+        }
         return merged.toBuilder()
                 .constValue(constValue)
                 .enumValues(enumValues)
+                .oneOf(coalesce(a.getOneOf(), b.getOneOf()))
+                .anyOf(coalesce(a.getAnyOf(), b.getAnyOf()))
+                .allOf(concat(a.getAllOf(), b.getAllOf()))
                 .build();
     }
 
@@ -170,17 +181,6 @@ final class SchemaMerger {
                 .minItems(maxNullable(a.getMinItems(), b.getMinItems()))
                 .maxItems(minNullable(a.getMaxItems(), b.getMaxItems()))
                 .build();
-    }
-
-    private static void rejectUnsupportedComposition(Schema a, Schema b) {
-        if (a.getOneOf() != null || b.getOneOf() != null) {
-            throw new IllegalArgumentException(
-                    "allOf composition with nested oneOf is not yet supported");
-        }
-        if (a.getAllOf() != null || b.getAllOf() != null) {
-            throw new IllegalArgumentException(
-                    "nested allOf inside allOf is not yet supported");
-        }
     }
 
     /**

@@ -61,14 +61,10 @@ public final class JsonGenerator {
         if (schema.getEnumValues() != null) {
             return new EnumGenerator(context, schema.getEnumValues());
         }
-        if (schema.getOneOf() != null) {
-            return new OneOfGenerator(context, schema);
-        }
-        if (schema.getAnyOf() != null) {
-            return new AnyOfGenerator(context, schema);
-        }
-        if (schema.getAllOf() != null) {
-            return new AllOfGenerator(context, schema);
+        if (schema.getOneOf() != null
+                || schema.getAnyOf() != null
+                || schema.getAllOf() != null) {
+            return new AnyOfAllOfOneOfGenerator(context, schema);
         }
         return switch (schema) {
             case StringSchema s -> buildStringDelegate(s, context);

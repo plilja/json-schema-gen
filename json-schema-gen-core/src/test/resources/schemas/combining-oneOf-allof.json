@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "allOf": [
+    {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer", "minimum": 1}
+      },
+      "required": ["id"]
+    }
+  ],
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "role": {"const": "admin"},
+        "level": {"type": "integer", "minimum": 1, "maximum": 10}
+      },
+      "required": ["role", "level"]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "role": {"const": "user"},
+        "nickname": {"type": "string"}
+      },
+      "required": ["role"]
+    }
+  ]
+}

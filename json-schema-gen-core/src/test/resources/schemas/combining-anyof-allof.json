@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "allOf": [
+    {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer", "minimum": 1}
+      },
+      "required": ["id"]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "minLength": 1}
+      },
+      "required": ["name"]
+    }
+  ],
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "email": {"type": "string"}
+      }
+    },
+    {
+      "type": "object",
+      "properties": {
+        "phone": {"type": "string"}
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package se.plilja.jsonschemagen.internal.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Nested;
@@ -47,6 +48,67 @@ class CollectionUtilTest {
 
             // then
             assertThat(original).containsExactly("a", "b", "c");
+        }
+    }
+
+    @Nested
+    class Concat {
+
+        @Test
+        void concatenatesBothLists() {
+            // when
+            var result = CollectionUtil.concat(List.of("a", "b"), List.of("c", "d"));
+
+            // then
+            assertThat(result).containsExactly("a", "b", "c", "d");
+        }
+
+        @Test
+        void returnsNullWhenBothNull() {
+            // when
+            var result = CollectionUtil.concat(null, null);
+
+            // then
+            assertThat(result).isNull();
+        }
+
+        @Test
+        void returnsCopyOfSecondWhenFirstIsNull() {
+            var second = new ArrayList<>(List.of("x", "y"));
+
+            // when
+            var result = CollectionUtil.concat(null, second);
+
+            // then
+            assertThat(result).containsExactly("x", "y");
+            result.add("z");
+            assertThat(second).containsExactly("x", "y");
+        }
+
+        @Test
+        void returnsCopyOfFirstWhenSecondIsNull() {
+            var first = new ArrayList<>(List.of("x", "y"));
+
+            // when
+            var result = CollectionUtil.concat(first, null);
+
+            // then
+            assertThat(result).containsExactly("x", "y");
+            result.add("z");
+            assertThat(first).containsExactly("x", "y");
+        }
+
+        @Test
+        void doesNotModifyOriginalLists() {
+            var first = new ArrayList<>(List.of("a"));
+            var second = new ArrayList<>(List.of("b"));
+
+            // when
+            CollectionUtil.concat(first, second);
+
+            // then
+            assertThat(first).containsExactly("a");
+            assertThat(second).containsExactly("b");
         }
     }
 }

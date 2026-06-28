@@ -487,43 +487,46 @@ class AllOfGeneratorTest {
         }
 
         @Test
-        void nestedOneOfInsideAllOfThrows() {
-            var json = """
+        void nestedOneOfInsideAllOfIsSupported() {
+            var generator = allOfGenerator("""
                     {
                         "allOf": [
                             {"type": "string"},
-                            {"oneOf": [{"type": "string"}, {"type": "integer"}]}
+                            {"oneOf": [{"type": "string", "minLength": 1}, {"type": "string", "maxLength": 10}]}
                         ]
                     }
-                    """;
+                    """);
 
-            // when / then
-            assertThatThrownBy(() -> allOfGenerator(json))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("oneOf");
+            // when
+            var value = generator.generate();
+
+            // then
+            assertThat(value).isInstanceOf(String.class);
         }
 
         @Test
-        void nestedAllOfInsideAllOfThrows() {
-            var json = """
+        void nestedAllOfInsideAllOfIsSupported() {
+            var generator = allOfGenerator("""
                     {
                         "allOf": [
                             {"type": "string"},
                             {"allOf": [{"type": "string", "minLength": 3}]}
                         ]
                     }
-                    """;
+                    """);
 
-            // when / then
-            assertThatThrownBy(() -> allOfGenerator(json))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("allOf");
+            // when
+            var value = generator.generate();
+
+            // then
+            assertThat(value).isInstanceOf(String.class);
+            assertThat(((String) value).length()).isGreaterThanOrEqualTo(3);
         }
     }
 
-    private static AllOfGenerator allOfGenerator(String json) {
+    private static AnyOfAllOfOneOfGenerator allOfGenerator(String json) {
         var document = SchemaParser.parse(json);
-        return new AllOfGenerator(
+        return new AnyOfAllOfOneOfGenerator(
                 new GeneratorContext(document, new Random(42)),
                 document.getRoot());
     }
