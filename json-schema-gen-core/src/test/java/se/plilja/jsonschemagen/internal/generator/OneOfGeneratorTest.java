@@ -78,9 +78,9 @@ class OneOfGeneratorTest {
         assertThat(values).allMatch(m -> m.containsKey("x"));
     }
 
-    private static OneOfGenerator oneOfGenerator(String json) {
+    private static AnyOfAllOfOneOfGenerator oneOfGenerator(String json) {
         var document = SchemaParser.parse(json);
-        return new OneOfGenerator(
+        return new AnyOfAllOfOneOfGenerator(
                 new GeneratorContext(document, new Random(42)),
                 document.getRoot());
     }

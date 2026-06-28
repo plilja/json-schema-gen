@@ -132,9 +132,9 @@ class AnyOfGeneratorTest {
         assertThat(values).allMatch(m -> m.containsKey("x"));
     }
 
-    private static AnyOfGenerator anyOfGenerator(String json) {
+    private static AnyOfAllOfOneOfGenerator anyOfGenerator(String json) {
         var document = SchemaParser.parse(json);
-        return new AnyOfGenerator(
+        return new AnyOfAllOfOneOfGenerator(
                 new GeneratorContext(document, new Random(42)),
                 document.getRoot());
     }

@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": {"const": "a"}
+      },
+      "required": ["kind"]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {"const": "b"}
+      },
+      "required": ["kind"]
+    }
+  ],
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "tag": {"type": "string"}
+      }
+    },
+    {
+      "type": "object",
+      "properties": {
+        "label": {"type": "string"}
+      }
+    }
+  ]
+}

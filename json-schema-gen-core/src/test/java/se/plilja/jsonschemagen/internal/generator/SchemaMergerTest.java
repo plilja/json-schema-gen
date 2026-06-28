@@ -701,6 +701,107 @@ class SchemaMergerTest {
     }
 
     @Nested
+    class CombiningKeywordPropagation {
+
+        @Test
+        void propagatesOneOfThroughMerge() {
+            var a = readSchema("""
+                    {"type": "string", "minLength": 3}
+                    """);
+            var b = readSchema("""
+                    {"oneOf": [{"type": "string"}, {"type": "integer"}]}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getOneOf()).isNotNull();
+            assertThat(merged.getOneOf()).hasSize(2);
+        }
+
+        @Test
+        void propagatesAllOfThroughMerge() {
+            var a = readSchema("""
+                    {"type": "string", "minLength": 3}
+                    """);
+            var b = readSchema("""
+                    {"allOf": [{"type": "string", "maxLength": 10}]}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getAllOf()).isNotNull();
+            assertThat(merged.getAllOf()).hasSize(1);
+        }
+
+        @Test
+        void propagatesAnyOfThroughMerge() {
+            var a = readSchema("""
+                    {"type": "string", "minLength": 3}
+                    """);
+            var b = readSchema("""
+                    {"anyOf": [{"type": "string"}, {"type": "integer"}]}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getAnyOf()).isNotNull();
+            assertThat(merged.getAnyOf()).hasSize(2);
+        }
+
+        @Test
+        void concatenatesAllOfFromBothSides() {
+            var a = readSchema("""
+                    {"allOf": [{"type": "string", "minLength": 3}]}
+                    """);
+            var b = readSchema("""
+                    {"allOf": [{"type": "string", "maxLength": 10}]}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getAllOf()).hasSize(2);
+        }
+
+        @Test
+        void throwsWhenBothSidesCarryOneOf() {
+            var a = readSchema("""
+                    {"oneOf": [{"type": "string"}]}
+                    """);
+            var b = readSchema("""
+                    {"oneOf": [{"type": "integer"}]}
+                    """);
+
+            // when / then
+            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("oneOf");
+        }
+
+        @Test
+        void throwsWhenBothSidesCarryAnyOf() {
+            var a = readSchema("""
+                    {"anyOf": [{"type": "string"}]}
+                    """);
+            var b = readSchema("""
+                    {"anyOf": [{"type": "integer"}]}
+                    """);
+
+            // when / then
+            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("anyOf");
+        }
+    }
+
+    @Nested
     class IncompatibleTypes {
 
         @Test
