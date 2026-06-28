@@ -1,0 +1,17 @@
+{
+    "definitions": {
+        "Address": {
+            "type": "object",
+            "properties": {
+                "street": {"type": "string"},
+                "city": {"type": "string"}
+            },
+            "required": ["street", "city"]
+        },
+        "ZipCode": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 10
+        }
+    }
+}

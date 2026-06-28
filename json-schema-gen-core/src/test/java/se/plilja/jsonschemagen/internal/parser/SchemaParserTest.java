@@ -3,7 +3,15 @@ package se.plilja.jsonschemagen.internal.parser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.sun.net.httpserver.HttpServer;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import java.util.List;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
@@ -222,18 +230,75 @@ class SchemaParserTest {
     }
 
     @Test
-    void externalUriRefThrowsIllegalArgumentException() {
+    void httpRefResolvesViaNetwork() throws IOException {
+        var server = startSchemaServer("/schema.json", """
+                {"type": "string", "minLength": 1}
+                """);
+        try {
+            int port = server.getAddress().getPort();
+
+            // when
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "properties": {
+                            "name": {"$ref": "http://localhost:%d/schema.json"}
+                        }
+                    }
+                    """.formatted(port));
+
+            // then
+            var resolved = document.resolveRef("http://localhost:%d/schema.json".formatted(port));
+            assertThat(resolved).isNotNull().isInstanceOf(StringSchema.class);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void httpRefWithFragmentResolvesDefinition() throws IOException {
+        var server = startSchemaServer("/defs.json", """
+                {
+                    "definitions": {
+                        "Tag": {"type": "string", "maxLength": 50}
+                    }
+                }
+                """);
+        try {
+            int port = server.getAddress().getPort();
+
+            // when
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {"$ref": "http://localhost:%d/defs.json#/definitions/Tag"}
+                        }
+                    }
+                    """.formatted(port));
+
+            // then
+            var resolved = document.resolveRef("http://localhost:%d/defs.json#/definitions/Tag".formatted(port));
+            assertThat(resolved).isNotNull().isInstanceOf(StringSchema.class);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void relativeRefWithNoBaseDirThrowsIllegalArgumentException() {
         // when / then
         assertThatThrownBy(() -> SchemaParser.parse("""
                 {
                     "type": "object",
                     "properties": {
-                        "external": {"$ref": "http://example.com/schema.json"}
+                        "external": {"$ref": "other-schema.json#/definitions/Foo"}
                     }
                 }
                 """))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Only internal");
+                .hasMessageContaining("other-schema.json")
+                .hasMessageContaining("no base URI");
     }
 
     @Test
@@ -424,6 +489,79 @@ class SchemaParserTest {
     }
 
     @Test
+    void fileRefResolvesToExternalSchema() throws URISyntaxException {
+        var schemaFile = testResourcePath("schemas/ref-external-file.json");
+
+        // when
+        var document = SchemaParser.parse(schemaFile);
+
+        // then
+        var resolved = document.resolveRef("external/defs.json#/definitions/Address");
+        assertThat(resolved).isNotNull();
+        assertThat(resolved).isInstanceOf(ObjectSchema.class);
+    }
+
+    @Test
+    void twoFragmentsIntoSameExternalFileBothResolve(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("defs.json"), """
+                {
+                    "definitions": {
+                        "Address": {
+                            "type": "object",
+                            "properties": {"street": {"type": "string"}},
+                            "required": ["street"]
+                        },
+                        "ZipCode": {
+                            "type": "string",
+                            "minLength": 5
+                        }
+                    }
+                }
+                """);
+        var schemaFile = Files.writeString(tempDir.resolve("main.json"), """
+                {
+                    "type": "object",
+                    "properties": {
+                        "address": {"$ref": "defs.json#/definitions/Address"},
+                        "zip": {"$ref": "defs.json#/definitions/ZipCode"}
+                    }
+                }
+                """);
+
+        // when
+        var document = SchemaParser.parse(schemaFile);
+
+        // then
+        var address = document.resolveRef("defs.json#/definitions/Address");
+        var zip = document.resolveRef("defs.json#/definitions/ZipCode");
+        assertThat(address).isNotNull().isInstanceOf(ObjectSchema.class);
+        assertThat(zip).isNotNull().isInstanceOf(StringSchema.class);
+    }
+
+    @Test
+    void fileRefWithoutFragmentResolvesToExternalRoot(@TempDir Path tempDir) throws Exception {
+        Files.writeString(tempDir.resolve("leaf.json"), """
+                {"type": "string", "minLength": 1}
+                """);
+        var schemaFile = Files.writeString(tempDir.resolve("main.json"), """
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {"$ref": "leaf.json"}
+                    }
+                }
+                """);
+
+        // when
+        var document = SchemaParser.parse(schemaFile);
+
+        // then
+        var resolved = document.resolveRef("leaf.json");
+        assertThat(resolved).isNotNull();
+        assertThat(resolved).isInstanceOf(StringSchema.class);
+    }
+
+    @Test
     void typeArrayPreservesConstraintsOnRelevantBranch() {
         // when
         var document = SchemaParser.parse("""
@@ -436,5 +574,21 @@ class SchemaParserTest {
         assertThat(root.getOneOf().get(0)).isInstanceOf(NumericSchema.class);
         var stringBranch = (StringSchema) root.getOneOf().get(1);
         assertThat(stringBranch.getMinLength()).isEqualTo(3);
+    }
+
+    private static Path testResourcePath(String relativePath) throws URISyntaxException {
+        return Paths.get(SchemaParserTest.class.getClassLoader().getResource(relativePath).toURI());
+    }
+
+    private static HttpServer startSchemaServer(String path, String body) throws IOException {
+        var server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext(path, exchange -> {
+            var bytes = body.getBytes();
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        return server;
     }
 }

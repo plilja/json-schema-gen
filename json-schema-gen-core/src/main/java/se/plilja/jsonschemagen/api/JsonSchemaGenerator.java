@@ -63,10 +63,15 @@ public final class JsonSchemaGenerator {
     /**
      * Creates a generator by reading a JSON Schema from a file.
      *
+     * <p>External {@code $ref} values (relative file paths or HTTP URLs) are
+     * resolved relative to the file's parent directory.
+     *
      * @param schema file containing a JSON Schema (Draft 7) document in UTF-8 encoding
      */
     public static JsonSchemaGenerator of(File schema) throws IOException {
-        return of(Files.readString(schema.toPath()));
+        var schemaString = Files.readString(schema.toPath());
+        var document = SchemaParser.parse(schema.toPath().toAbsolutePath());
+        return new JsonSchemaGenerator(schemaString, document, null, Collections.emptyMap());
     }
 
     /**

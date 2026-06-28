@@ -4,6 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import se.plilja.jsonschemagen.internal.model.Schema;
@@ -26,6 +30,28 @@ public final class SchemaParser {
      *     contains an unresolvable {@code $ref}
      */
     public static SchemaDocument parse(String jsonSchema) {
+        return doParse(jsonSchema, null);
+    }
+
+    /**
+     * Parses a JSON Schema file into a {@link SchemaDocument} containing
+     * the root schema and all resolved {@code $ref} targets. External
+     * {@code $ref} values are resolved relative to the file's parent directory.
+     *
+     * @throws IllegalArgumentException if the schema is not valid JSON or
+     *     contains an unresolvable {@code $ref}
+     * @throws UncheckedIOException if reading the file fails
+     */
+    public static SchemaDocument parse(Path schemaFile) {
+        try {
+            var jsonSchema = Files.readString(schemaFile);
+            return doParse(jsonSchema, schemaFile.toAbsolutePath().getParent());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static SchemaDocument doParse(String jsonSchema, Path baseDir) {
         try {
             var rootNode = MAPPER.readTree(jsonSchema);
             rewriteTypeArrays(rootNode);
@@ -34,7 +60,7 @@ public final class SchemaParser {
             // Self-reference always resolves to the same root Schema instance so phase state
             // is shared between the root and any "#" ref.
             refs.put("#", rootSchema);
-            collectRefs(rootNode, rootNode, refs);
+            collectRefs(rootNode, rootNode, refs, baseDir);
             return new SchemaDocument(rootSchema, refs);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Failed to parse JSON Schema", e);
@@ -92,36 +118,76 @@ public final class SchemaParser {
         }
     }
 
-    private static void collectRefs(JsonNode node, JsonNode root, Map<String, Schema> refs)
-            throws JsonProcessingException {
+    private static void collectRefs(
+            JsonNode node, JsonNode root, Map<String, Schema> refs,
+            Path baseDir) throws JsonProcessingException {
         if (node.isObject()) {
             var refNode = node.get("$ref");
             if (refNode != null && refNode.isTextual()) {
                 var ref = refNode.asText();
                 if (!refs.containsKey(ref)) {
-                    refs.put(ref, resolveRef(ref, root));
+                    var resolved = resolveRef(ref, root, baseDir);
+                    refs.put(ref, resolved);
                 }
             }
             for (var property : node.properties()) {
-                collectRefs(property.getValue(), root, refs);
+                collectRefs(property.getValue(), root, refs, baseDir);
             }
         } else if (node.isArray()) {
             for (var item : node) {
-                collectRefs(item, root, refs);
+                collectRefs(item, root, refs, baseDir);
             }
         }
     }
 
-    private static Schema resolveRef(String ref, JsonNode root) throws JsonProcessingException {
-        if (!ref.startsWith("#")) {
-            throw new IllegalArgumentException(
-                    "Only internal $ref pointers are supported, got: " + ref);
+    /**
+     * Resolves a {@code $ref} string to a {@link Schema}. Internal
+     * references are resolved within {@code root}; external references
+     * are loaded from file or HTTP and resolved by fragment.
+     */
+    private static Schema resolveRef(String ref, JsonNode root, Path baseDir) throws JsonProcessingException {
+        if (ref.startsWith("#")) {
+            return resolveFragment(ref.substring(1), root);
         }
-        var pointer = ref.substring(1);
+        int fragmentIndex = ref.indexOf('#');
+        var baseUri = fragmentIndex >= 0 ? ref.substring(0, fragmentIndex) : ref;
+        var fragment = fragmentIndex >= 0 ? ref.substring(fragmentIndex + 1) : "";
+
+        var externalRoot = loadExternalDocument(baseUri, baseDir);
+        return resolveFragment(fragment, externalRoot);
+    }
+
+    private static Schema resolveFragment(String pointer, JsonNode root) throws JsonProcessingException {
+        if (pointer.isEmpty()) {
+            return MAPPER.treeToValue(root, Schema.class);
+        }
         var target = root.at(pointer);
         if (target.isMissingNode()) {
-            throw new IllegalArgumentException("Unresolved $ref: " + ref);
+            throw new IllegalArgumentException("Unresolved $ref fragment: #" + pointer);
         }
         return MAPPER.treeToValue(target, Schema.class);
+    }
+
+    /**
+     * Loads an external JSON Schema document by URI. Relative URIs resolve
+     * against {@code baseDir}; HTTP(S) URIs are fetched over the network.
+     */
+    private static JsonNode loadExternalDocument(String uri, Path baseDir) {
+        try {
+            JsonNode node;
+            if (uri.startsWith("http://") || uri.startsWith("https://")) {
+                node = MAPPER.readTree(SchemaFetcher.fetch(uri));
+            } else if (baseDir != null) {
+                node = MAPPER.readTree(Files.readString(baseDir.resolve(uri)));
+            } else {
+                throw new IllegalArgumentException(
+                        "Cannot resolve relative $ref '" + uri
+                                + "': no base URI. Use SchemaParser.parse(Path) to parse from a file.");
+            }
+            rewriteTypeArrays(node);
+            return node;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

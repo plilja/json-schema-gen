@@ -1,0 +1,7 @@
+{
+    "type": "object",
+    "properties": {
+        "billing": {"$ref": "external/defs.json#/definitions/Address"}
+    },
+    "required": ["billing"]
+}
