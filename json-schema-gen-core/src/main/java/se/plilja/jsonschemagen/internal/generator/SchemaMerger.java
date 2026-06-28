@@ -65,6 +65,12 @@ final class SchemaMerger {
     }
 
     private static Schema mergeTwoSchemas(Schema a, Schema b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
         rejectUnsupportedComposition(a, b);
 
         Schema merged;
@@ -109,18 +115,8 @@ final class SchemaMerger {
                     .maxProperties(minNullable(oa.getMaxProperties(), ob.getMaxProperties()))
                     .build();
         } else if (a instanceof ArraySchema aa && b instanceof ArraySchema ab) {
-            Schema items;
-            if (aa.getItemSchema() != null && ab.getItemSchema() != null) {
-                items = mergeTwoSchemas(aa.getItemSchema(), ab.getItemSchema());
-            } else {
-                items = coalesce(aa.getItemSchema(), ab.getItemSchema());
-            }
-            Schema contains;
-            if (aa.getContains() != null && ab.getContains() != null) {
-                contains = mergeTwoSchemas(aa.getContains(), ab.getContains());
-            } else {
-                contains = coalesce(aa.getContains(), ab.getContains());
-            }
+            var items = mergeTwoSchemas(aa.getItemSchema(), ab.getItemSchema());
+            var contains = mergeTwoSchemas(aa.getContains(), ab.getContains());
             var prefixA = aa.getPrefixSchemas();
             var prefixB = ab.getPrefixSchemas();
             List<Schema> mergedPrefix = null;
@@ -130,11 +126,7 @@ final class SchemaMerger {
                 for (int i = 0; i < len; i++) {
                     var pa = i < prefixA.size() ? prefixA.get(i) : null;
                     var pb = i < prefixB.size() ? prefixB.get(i) : null;
-                    if (pa != null && pb != null) {
-                        mergedPrefix.add(mergeTwoSchemas(pa, pb));
-                    } else {
-                        mergedPrefix.add(coalesce(pa, pb));
-                    }
+                    mergedPrefix.add(mergeTwoSchemas(pa, pb));
                 }
             }
             var mergedAdditionalItems = aa.areAdditionalItemsAllowed() && ab.areAdditionalItemsAllowed() ? null : Boolean.FALSE;
