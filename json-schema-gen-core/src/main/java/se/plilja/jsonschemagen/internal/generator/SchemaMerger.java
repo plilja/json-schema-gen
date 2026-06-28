@@ -81,63 +81,13 @@ final class SchemaMerger {
         } else if (a instanceof UntypedSchema) {
             merged = b.toBuilder().build();
         } else if (a instanceof StringSchema sa && b instanceof StringSchema sb) {
-            if (sa.getPattern() != null && sb.getPattern() != null) {
-                throw new UnsatisfiableSchemaException(
-                        "Cannot merge branches with conflicting pattern constraints");
-            }
-            merged = StringSchema.builder()
-                    .minLength(maxNullable(sa.getMinLength(), sb.getMinLength()))
-                    .maxLength(minNullable(sa.getMaxLength(), sb.getMaxLength()))
-                    .pattern(coalesce(sa.getPattern(), sb.getPattern()))
-                    .build();
+            merged = mergeStringSchemas(sa, sb);
         } else if (a instanceof NumericSchema na && b instanceof NumericSchema nb) {
-            merged = NumericSchema.builder()
-                    .minimum(maxNullable(na.getMinimum(), nb.getMinimum()))
-                    .maximum(minNullable(na.getMaximum(), nb.getMaximum()))
-                    .exclusiveMinimum(maxNullable(na.getExclusiveMinimum(), nb.getExclusiveMinimum()))
-                    .exclusiveMaximum(minNullable(na.getExclusiveMaximum(), nb.getExclusiveMaximum()))
-                    .multipleOf(MathUtil.lcmNullable(na.getMultipleOf(), nb.getMultipleOf()))
-                    .build();
+            merged = mergeNumericSchemas(na, nb);
         } else if (a instanceof ObjectSchema oa && b instanceof ObjectSchema ob) {
-            var properties = new LinkedHashMap<>(oa.getProperties());
-            for (var entry : ob.getProperties().entrySet()) {
-                properties.merge(entry.getKey(), entry.getValue(), SchemaMerger::mergeTwoSchemas);
-            }
-            var required = Stream.concat(oa.getRequired().stream(), ob.getRequired().stream())
-                    .distinct()
-                    .toList();
-            var additionalProperties = mergeBooleanOrSchema(oa.getAdditionalProperties(), ob.getAdditionalProperties());
-            merged = ObjectSchema.builder()
-                    .properties(properties)
-                    .required(required)
-                    .additionalProperties(additionalProperties)
-                    .minProperties(maxNullable(oa.getMinProperties(), ob.getMinProperties()))
-                    .maxProperties(minNullable(oa.getMaxProperties(), ob.getMaxProperties()))
-                    .build();
+            merged = mergeObjectSchemas(oa, ob);
         } else if (a instanceof ArraySchema aa && b instanceof ArraySchema ab) {
-            var items = mergeTwoSchemas(aa.getItemSchema(), ab.getItemSchema());
-            var contains = mergeTwoSchemas(aa.getContains(), ab.getContains());
-            var prefixA = aa.getPrefixSchemas();
-            var prefixB = ab.getPrefixSchemas();
-            List<Schema> mergedPrefix = null;
-            if (!prefixA.isEmpty() || !prefixB.isEmpty()) {
-                int len = Math.max(prefixA.size(), prefixB.size());
-                mergedPrefix = new ArrayList<>();
-                for (int i = 0; i < len; i++) {
-                    var pa = i < prefixA.size() ? prefixA.get(i) : null;
-                    var pb = i < prefixB.size() ? prefixB.get(i) : null;
-                    mergedPrefix.add(mergeTwoSchemas(pa, pb));
-                }
-            }
-            var mergedAdditionalItems = aa.areAdditionalItemsAllowed() && ab.areAdditionalItemsAllowed() ? null : Boolean.FALSE;
-            merged = ArraySchema.builder()
-                    .items(items)
-                    .prefixItems(mergedPrefix)
-                    .additionalItems(mergedAdditionalItems)
-                    .contains(contains)
-                    .minItems(maxNullable(aa.getMinItems(), ab.getMinItems()))
-                    .maxItems(minNullable(aa.getMaxItems(), ab.getMaxItems()))
-                    .build();
+            merged = mergeArraySchemas(aa, ab);
         } else {
             throw new UnsatisfiableSchemaException(
                     "Cannot merge schemas of types " + a.getClass().getSimpleName()
@@ -153,6 +103,72 @@ final class SchemaMerger {
         return merged.toBuilder()
                 .constValue(constValue)
                 .enumValues(enumValues)
+                .build();
+    }
+
+    private static StringSchema mergeStringSchemas(StringSchema a, StringSchema b) {
+        if (a.getPattern() != null && b.getPattern() != null) {
+            throw new UnsatisfiableSchemaException(
+                    "Cannot merge branches with conflicting pattern constraints");
+        }
+        return StringSchema.builder()
+                .minLength(maxNullable(a.getMinLength(), b.getMinLength()))
+                .maxLength(minNullable(a.getMaxLength(), b.getMaxLength()))
+                .pattern(coalesce(a.getPattern(), b.getPattern()))
+                .build();
+    }
+
+    private static NumericSchema mergeNumericSchemas(NumericSchema a, NumericSchema b) {
+        return NumericSchema.builder()
+                .minimum(maxNullable(a.getMinimum(), b.getMinimum()))
+                .maximum(minNullable(a.getMaximum(), b.getMaximum()))
+                .exclusiveMinimum(maxNullable(a.getExclusiveMinimum(), b.getExclusiveMinimum()))
+                .exclusiveMaximum(minNullable(a.getExclusiveMaximum(), b.getExclusiveMaximum()))
+                .multipleOf(MathUtil.lcmNullable(a.getMultipleOf(), b.getMultipleOf()))
+                .build();
+    }
+
+    private static ObjectSchema mergeObjectSchemas(ObjectSchema a, ObjectSchema b) {
+        var properties = new LinkedHashMap<>(a.getProperties());
+        for (var entry : b.getProperties().entrySet()) {
+            properties.merge(entry.getKey(), entry.getValue(), SchemaMerger::mergeTwoSchemas);
+        }
+        var required = Stream.concat(a.getRequired().stream(), b.getRequired().stream())
+                .distinct()
+                .toList();
+        var additionalProperties = mergeBooleanOrSchema(a.getAdditionalProperties(), b.getAdditionalProperties());
+        return ObjectSchema.builder()
+                .properties(properties)
+                .required(required)
+                .additionalProperties(additionalProperties)
+                .minProperties(maxNullable(a.getMinProperties(), b.getMinProperties()))
+                .maxProperties(minNullable(a.getMaxProperties(), b.getMaxProperties()))
+                .build();
+    }
+
+    private static ArraySchema mergeArraySchemas(ArraySchema a, ArraySchema b) {
+        var items = mergeTwoSchemas(a.getItemSchema(), b.getItemSchema());
+        var contains = mergeTwoSchemas(a.getContains(), b.getContains());
+        var prefixA = a.getPrefixSchemas();
+        var prefixB = b.getPrefixSchemas();
+        List<Schema> mergedPrefix = null;
+        if (!prefixA.isEmpty() || !prefixB.isEmpty()) {
+            int len = Math.max(prefixA.size(), prefixB.size());
+            mergedPrefix = new ArrayList<>();
+            for (int i = 0; i < len; i++) {
+                var pa = i < prefixA.size() ? prefixA.get(i) : null;
+                var pb = i < prefixB.size() ? prefixB.get(i) : null;
+                mergedPrefix.add(mergeTwoSchemas(pa, pb));
+            }
+        }
+        var mergedAdditionalItems = a.areAdditionalItemsAllowed() && b.areAdditionalItemsAllowed() ? null : Boolean.FALSE;
+        return ArraySchema.builder()
+                .items(items)
+                .prefixItems(mergedPrefix)
+                .additionalItems(mergedAdditionalItems)
+                .contains(contains)
+                .minItems(maxNullable(a.getMinItems(), b.getMinItems()))
+                .maxItems(minNullable(a.getMaxItems(), b.getMaxItems()))
                 .build();
     }
 
