@@ -10,7 +10,6 @@ import se.plilja.jsonschemagen.internal.model.Schema;
  */
 final class RefGenerator implements Generator<Object> {
 
-    // TODO make these configurable via the public API once a use case appears.
     // SOFT_DEPTH flips the context into minimal mode so recursive generators
     // collapse to required-only / empty containers. HARD_DEPTH is the ceiling
     // for required-field recursion that can never bottom out — beyond it the

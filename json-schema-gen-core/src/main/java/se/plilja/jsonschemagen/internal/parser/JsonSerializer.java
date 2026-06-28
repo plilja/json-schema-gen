@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public final class JsonSerializer {
 
-    // TODO Consider making the object mapper configurable since it will impact the generated output
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
