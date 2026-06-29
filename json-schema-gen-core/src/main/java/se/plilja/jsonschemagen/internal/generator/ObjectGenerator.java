@@ -11,7 +11,9 @@ import java.util.List;
 import java.util.Map;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
+import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
+import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 import se.plilja.jsonschemagen.internal.util.GraphUtil;
 
 /**
@@ -43,10 +45,15 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         var optionalProperties = satisfiableOptionalProperties(order);
         int requiredCount = schema.getRequired().size();
         int effectiveMin = Math.max(requiredCount, coalesce(schema.getMinProperties(), 0));
-        int effectiveMax = Math.min(
-                requiredCount + optionalProperties.size(),
-                coalesce(schema.getMaxProperties(), Integer.MAX_VALUE)
-        );
+        int numberOfNamedProperties = requiredCount + optionalProperties.size();
+        int effectiveMax;
+        if (canSynthesizeNewProperties()) {
+            // We can invent as many new properties as needed, up to maxProperties
+            effectiveMax = coalesce(schema.getMaxProperties(), Math.max(numberOfNamedProperties, effectiveMin));
+        } else {
+            // Only named properties are allowed
+            effectiveMax = Math.min(numberOfNamedProperties, coalesce(schema.getMaxProperties(), Integer.MAX_VALUE));
+        }
 
         if (effectiveMax < requiredCount) {
             throw new UnsatisfiableSchemaException(
@@ -116,6 +123,17 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
                 obj.put(property, context.generatorFor(fieldSchema).generate());
             }
         }
+        // Synthesize additional properties to reach targetCount
+        var synthesizeSchema = synthesizableSchema();
+        if (obj.size() < targetCount && synthesizeSchema != null) {
+            int i = 0;
+            while (obj.size() < targetCount) {
+                var name = "prop" + i++;
+                if (!obj.containsKey(name)) {
+                    obj.put(name, context.generatorFor(synthesizeSchema).generate());
+                }
+            }
+        }
         if (obj.size() < effectiveMin) {
             throw new UnsatisfiableSchemaException(
                     "Could not select enough properties to satisfy minProperties (" + schema.getMinProperties()
@@ -150,6 +168,32 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             }
         }
         return current;
+    }
+
+    /**
+     * Whether the generator can invent new property names beyond those
+     * declared in {@code properties}. True unless {@code additionalProperties}
+     * is {@code false}.
+     */
+    private boolean canSynthesizeNewProperties() {
+        return synthesizableSchema() != null;
+    }
+
+    /**
+     * Returns the schema for generating synthesized property values.
+     * If {@code additionalProperties} is a schema, returns that schema.
+     * If absent or {@code true}, returns an {@link UntypedSchema}.
+     * If {@code false}, returns {@code null} (synthesis is not possible).
+     */
+    private Schema synthesizableSchema() {
+        var additional = schema.getAdditionalProperties();
+        if (additional instanceof Schema s) {
+            return s;
+        }
+        if (Boolean.FALSE.equals(additional)) {
+            return null;
+        }
+        return new UntypedSchema();
     }
 
     /**

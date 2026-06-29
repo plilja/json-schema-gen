@@ -442,6 +442,7 @@ class ObjectGeneratorTest {
                         "a": {"type": "string"},
                         "b": false
                     },
+                    "additionalProperties": false,
                     "minProperties": 3
                 }
                 """);
@@ -505,6 +506,107 @@ class ObjectGeneratorTest {
             if (obj.containsKey("b")) {
                 assertThat(obj).containsKey("a");
             }
+        });
+    }
+
+    @Test
+    void additionalPropertiesTrueWithMinPropertiesSynthesizesEntries() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "minProperties": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).hasSizeGreaterThanOrEqualTo(2));
+    }
+
+    @Test
+    void absentAdditionalPropertiesWithMinPropertiesSynthesizesEntries() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "minProperties": 1
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).hasSizeGreaterThanOrEqualTo(1));
+    }
+
+    @Test
+    void additionalPropertiesFalseWithMinPropertiesExceedingNamedThrows() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "minProperties": 1
+                }
+                """);
+
+        // when / then
+        assertThatThrownBy(generator::generate)
+                .isInstanceOf(UnsatisfiableSchemaException.class);
+    }
+
+    @Test
+    void namedPropertiesTakePriorityOverSynthesized() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer"}
+                    },
+                    "required": ["id"],
+                    "additionalProperties": {"type": "string"},
+                    "minProperties": 3
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).hasSizeGreaterThanOrEqualTo(3);
+            assertThat(obj).containsKey("id");
+            assertThat(obj.get("id")).isInstanceOf(Number.class);
+        });
+    }
+
+    @Test
+    void additionalPropertiesSchemaWithMinPropertiesSynthesizesEntries() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "minProperties": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).hasSizeGreaterThanOrEqualTo(2);
+            obj.values().forEach(v -> assertThat(v).isInstanceOf(String.class));
         });
     }
 
