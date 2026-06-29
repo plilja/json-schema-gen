@@ -27,7 +27,7 @@ final class SchemaFetcher {
      *     non-2xx status code
      */
     static String fetch(String url) throws IOException {
-        try (var client = HttpClient.newHttpClient()) {
+        try (var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
             var request = HttpRequest.newBuilder(URI.create(url)).GET().build();
             var response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
