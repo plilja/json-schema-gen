@@ -27,10 +27,11 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder(toBuilder = true)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = UntypedSchema.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = UntypedSchema.class, visible = true)
 @JsonSubTypes({
         @JsonSubTypes.Type(value = StringSchema.class, name = "string"),
         @JsonSubTypes.Type(value = NumericSchema.class, name = "integer"),
+        @JsonSubTypes.Type(value = NumericSchema.class, name = "number"),
         @JsonSubTypes.Type(value = BooleanSchema.class, name = "boolean"),
         @JsonSubTypes.Type(value = NullSchema.class, name = "null"),
         @JsonSubTypes.Type(value = ObjectSchema.class, name = "object"),

@@ -130,7 +130,10 @@ final class SchemaMerger {
     }
 
     private static NumericSchema mergeNumericSchemas(NumericSchema a, NumericSchema b) {
+        // integer is the stricter type — if either branch requires it, the merge must too
+        var type = a.isInteger() || b.isInteger() ? "integer" : "number";
         return NumericSchema.builder()
+                .type(type)
                 .minimum(maxNullable(a.getMinimum(), b.getMinimum()))
                 .maximum(minNullable(a.getMaximum(), b.getMaximum()))
                 .exclusiveMinimum(maxNullable(a.getExclusiveMinimum(), b.getExclusiveMinimum()))

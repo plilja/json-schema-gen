@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
+import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
@@ -141,6 +142,42 @@ class SchemaMergerTest {
             assertThat(merged).isEqualTo(readSchema("""
                     {"type": "integer", "multipleOf": 15}
                     """));
+        }
+
+        @Test
+        void integerAndNumberMergeToInteger() {
+            var a = readSchema("""
+                    {"type": "integer", "minimum": 5}
+                    """);
+            var b = readSchema("""
+                    {"type": "number", "maximum": 20}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isInstanceOf(NumericSchema.class);
+            var numeric = (NumericSchema) merged;
+            assertThat(numeric.isInteger()).isTrue();
+        }
+
+        @Test
+        void numberAndIntegerMergeToInteger() {
+            var a = readSchema("""
+                    {"type": "number", "minimum": 5}
+                    """);
+            var b = readSchema("""
+                    {"type": "integer", "maximum": 20}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isInstanceOf(NumericSchema.class);
+            var numeric = (NumericSchema) merged;
+            assertThat(numeric.isInteger()).isTrue();
         }
     }
 

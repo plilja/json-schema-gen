@@ -3,18 +3,20 @@ package se.plilja.jsonschemagen.internal.generator;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 
 /**
- * Generator for {@code "type": "integer"} schemas. Note that JSON Schema
- * integers are arbitrary-precision whole numbers, not bounded like Java's
- * {@code int} or {@code long}; this generator uses {@code long} as its
- * value type.
+ * Generator for {@code "type": "integer"} and {@code "type": "number"}
+ * schemas. Integer schemas produce {@link Long} values; number schemas
+ * produce {@link Double} values. Constraint arithmetic uses
+ * {@link BigDecimal} internally for precision.
  */
-final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationPhase, Long> {
+final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationPhase, Number> {
 
-    // 2^53 - 1: above this, multipleOf checks done in IEEE 754 double precision are unreliable.
-    private static final long MAX_SAFE_INTEGER = (1L << 53) - 1;
+    private static final BigDecimal MAX_SAFE_INTEGER = new BigDecimal(1L << 53);
+    private static final BigDecimal NEG_MAX_SAFE_INTEGER = MAX_SAFE_INTEGER.negate();
 
     private final NumericSchema schema;
 
@@ -38,65 +40,100 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
     }
 
     @Override
-    protected GenerationResult<Long> generatePhase(GenerationPhase phase) {
-        long effMin = effectiveMin();
-        long effMax = effectiveMax();
-        long lowestMultiple = snapUp(effMin);
-        long highestMultiple = snapDown(effMax);
+    protected GenerationResult<Number> generatePhase(GenerationPhase phase) {
+        var effMin = effectiveMin();
+        var effMax = effectiveMax();
+        var lowestMultiple = snapUp(effMin);
+        var highestMultiple = snapDown(effMax);
         return switch (phase) {
-            case MIN -> hasLowerBound() || hasMultipleOf() ? result(lowestMultiple) : skip();
-            case MAX -> hasUpperBound() || hasMultipleOf() ? result(highestMultiple) : skip();
-            case ZERO -> {
-                if (!isInRange(0)) {
-                    yield skip();
-                }
-                if (lowestMultiple == 0 || highestMultiple == 0) {
-                    yield skip();
-                }
-                yield result(0L);
-            }
+            case MIN -> (hasLowerBound() || hasMultipleOf()) ? resultIfValid(lowestMultiple) : skip();
+            case MAX -> (hasUpperBound() || hasMultipleOf()) ? resultIfValid(highestMultiple) : skip();
+            case ZERO -> resultIfValid(BigDecimal.ZERO);
             case NEAR_MIN -> {
                 if (!hasLowerBound() && !hasMultipleOf()) {
                     yield skip();
                 }
-                long nearMin = lowestMultiple + step();
-                yield isInRange(nearMin) ? result(nearMin) : skip();
+                yield resultIfValid(lowestMultiple.add(step()));
             }
             case NEAR_MAX -> {
                 if (!hasUpperBound() && !hasMultipleOf()) {
                     yield skip();
                 }
-                long nearMax = highestMultiple - step();
-                yield isInRange(nearMax) ? result(nearMax) : skip();
+                yield resultIfValid(highestMultiple.subtract(step()));
             }
-            case RANDOM -> result(randomLong());
+            case RANDOM -> result(toOutput(randomValue(lowestMultiple, highestMultiple)));
         };
     }
 
-    private long effectiveMin() {
-        Long min = schema.getMinimum();
-        Long exMin = schema.getExclusiveMinimum();
+    private GenerationResult<Number> resultIfValid(BigDecimal value) {
+        return isValid(value) ? result(toOutput(value)) : skip();
+    }
+
+    private Number toOutput(BigDecimal value) {
+        if (schema.isInteger()) {
+            return value.longValueExact();
+        }
+        return value.doubleValue();
+    }
+
+    private BigDecimal effectiveMin() {
+        var min = schema.getMinimum();
+        var exMin = schema.getExclusiveMinimum();
         if (min != null && exMin != null) {
-            return Math.max(min, exMin + 1);
+            var exMinAdj = makeExclusiveMinInclusive(exMin);
+            return min.max(exMinAdj);
         } else if (exMin != null) {
-            return exMin + 1;
+            return makeExclusiveMinInclusive(exMin);
         } else if (min != null) {
             return min;
         }
-        return hasMultipleOf() ? -MAX_SAFE_INTEGER : Long.MIN_VALUE;
+        if (schema.isInteger()) {
+            return hasMultipleOf() ? NEG_MAX_SAFE_INTEGER : new BigDecimal(Long.MIN_VALUE);
+        }
+        return hasMultipleOf() ? NEG_MAX_SAFE_INTEGER : BigDecimal.valueOf(-Double.MAX_VALUE);
     }
 
-    private long effectiveMax() {
-        Long max = schema.getMaximum();
-        Long exMax = schema.getExclusiveMaximum();
+    private BigDecimal effectiveMax() {
+        var max = schema.getMaximum();
+        var exMax = schema.getExclusiveMaximum();
         if (max != null && exMax != null) {
-            return Math.min(max, exMax - 1);
+            var exMaxAdj = makeExclusiveMaxInclusive(exMax);
+            return max.min(exMaxAdj);
         } else if (exMax != null) {
-            return exMax - 1;
+            return makeExclusiveMaxInclusive(exMax);
         } else if (max != null) {
             return max;
         }
-        return hasMultipleOf() ? MAX_SAFE_INTEGER : Long.MAX_VALUE - 1;
+        if (schema.isInteger()) {
+            return hasMultipleOf() ? MAX_SAFE_INTEGER : new BigDecimal(Long.MAX_VALUE - 1);
+        }
+        return hasMultipleOf() ? MAX_SAFE_INTEGER : BigDecimal.valueOf(Double.MAX_VALUE);
+    }
+
+    /**
+     * Converts an exclusive lower bound to the closest inclusive value.
+     * For integers this is {@code exMin + 1}. For numbers, uses
+     * {@link Math#nextUp(double)} to find the nearest representable
+     * double above the bound.
+     */
+    private BigDecimal makeExclusiveMinInclusive(BigDecimal exMin) {
+        if (schema.isInteger()) {
+            return exMin.add(BigDecimal.ONE);
+        }
+        return BigDecimal.valueOf(Math.nextUp(exMin.doubleValue()));
+    }
+
+    /**
+     * Converts an exclusive upper bound to the closest inclusive value.
+     * For integers this is {@code exMax - 1}. For numbers, uses
+     * {@link Math#nextDown(double)} to find the nearest representable
+     * double below the bound.
+     */
+    private BigDecimal makeExclusiveMaxInclusive(BigDecimal exMax) {
+        if (schema.isInteger()) {
+            return exMax.subtract(BigDecimal.ONE);
+        }
+        return BigDecimal.valueOf(Math.nextDown(exMax.doubleValue()));
     }
 
     private boolean hasLowerBound() {
@@ -111,45 +148,73 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         return schema.getMultipleOf() != null;
     }
 
-    private long step() {
-        return hasMultipleOf() ? schema.getMultipleOf() : 1;
+    private BigDecimal step() {
+        return hasMultipleOf() ? schema.getMultipleOf() : BigDecimal.ONE;
     }
 
-    private long snapUp(long value) {
+    /**
+     * Rounds {@code value} up to the nearest valid point — the next
+     * integer for integer schemas, or the next multiple of
+     * {@code multipleOf} when that constraint is set.
+     */
+    private BigDecimal snapUp(BigDecimal value) {
         if (!hasMultipleOf()) {
+            if (schema.isInteger()) {
+                // Round up to nearest integer
+                return value.setScale(0, RoundingMode.CEILING);
+            }
             return value;
         }
-        long m = schema.getMultipleOf();
-        return Math.ceilDiv(value, m) * m;
+        var m = schema.getMultipleOf();
+        var divided = value.divide(m, 0, RoundingMode.CEILING);
+        return divided.multiply(m);
     }
 
-    private long snapDown(long value) {
+    /**
+     * Rounds {@code value} down to the nearest valid point — the previous
+     * integer for integer schemas, or the previous multiple of
+     * {@code multipleOf} when that constraint is set.
+     */
+    private BigDecimal snapDown(BigDecimal value) {
         if (!hasMultipleOf()) {
+            if (schema.isInteger()) {
+                // Round down to nearest integer
+                return value.setScale(0, RoundingMode.FLOOR);
+            }
             return value;
         }
-        long m = schema.getMultipleOf();
-        return Math.floorDiv(value, m) * m;
+        var m = schema.getMultipleOf();
+        var divided = value.divide(m, 0, RoundingMode.FLOOR);
+        return divided.multiply(m);
     }
 
-    private boolean isInRange(long value) {
-        if (value < effectiveMin() || value > effectiveMax()) {
+    private boolean isValid(BigDecimal value) {
+        if (value.compareTo(effectiveMin()) < 0 || value.compareTo(effectiveMax()) > 0) {
             return false;
         }
-        if (hasMultipleOf() && value % schema.getMultipleOf() != 0) {
+        if (schema.isInteger() && value.stripTrailingZeros().scale() > 0) {
+            return false;
+        }
+        if (hasMultipleOf() && value.remainder(schema.getMultipleOf()).signum() != 0) {
             return false;
         }
         return true;
     }
 
-    private long randomLong() {
-        long lowestMultiple = snapUp(effectiveMin());
-        long highestMultiple = snapDown(effectiveMax());
+    private BigDecimal randomValue(BigDecimal lowestMultiple, BigDecimal highestMultiple) {
         if (!hasMultipleOf()) {
-            return context.random().nextLong(lowestMultiple, highestMultiple + 1);
+            if (schema.isInteger()) {
+                long lo = lowestMultiple.longValueExact();
+                long hi = highestMultiple.longValueExact();
+                return BigDecimal.valueOf(context.random().nextLong(lo, hi + 1));
+            } else {
+                return BigDecimal.valueOf(context.random().nextDouble(lowestMultiple.doubleValue(), highestMultiple.doubleValue()));
+            }
         }
-        long m = schema.getMultipleOf();
-        long lowestIndex = lowestMultiple / m;
-        long highestIndex = highestMultiple / m;
-        return context.random().nextLong(lowestIndex, highestIndex + 1) * m;
+        var m = schema.getMultipleOf();
+        var lowestIndex = lowestMultiple.divide(m, 0, RoundingMode.UNNECESSARY);
+        var highestIndex = highestMultiple.divide(m, 0, RoundingMode.UNNECESSARY);
+        long randomIndex = context.random().nextLong(lowestIndex.longValueExact(), highestIndex.longValueExact() + 1);
+        return BigDecimal.valueOf(randomIndex).multiply(m);
     }
 }
