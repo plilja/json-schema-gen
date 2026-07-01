@@ -2,6 +2,8 @@ package se.plilja.jsonschemagen.internal.util;
 
 import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Random;
 
 /**
@@ -99,5 +101,28 @@ public final class MathUtil {
             return a == null ? b : a;
         }
         return lcm(a, b);
+    }
+
+    /**
+     * Returns the LCM of two {@link BigDecimal} values by scaling them
+     * to integers, computing the integer LCM, and scaling back.
+     * Treats {@code null} as absent (returns the other operand).
+     */
+    public static BigDecimal lcmNullable(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) {
+            return a == null ? b : a;
+        }
+        int scale = Math.max(a.scale(), b.scale());
+        var scaledFirst = a.movePointRight(scale).toBigIntegerExact();
+        var scaledSecond = b.movePointRight(scale).toBigIntegerExact();
+        var result = lcmBigInteger(scaledFirst, scaledSecond);
+        return new BigDecimal(result, scale);
+    }
+
+    private static BigInteger lcmBigInteger(BigInteger a, BigInteger b) {
+        if (a.signum() == 0 || b.signum() == 0) {
+            return BigInteger.ZERO;
+        }
+        return a.abs().divide(a.gcd(b)).multiply(b.abs());
     }
 }

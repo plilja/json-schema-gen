@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -804,6 +805,44 @@ class SchemaParserTest {
         assertThat(root.getOneOf().get(0)).isInstanceOf(NumericSchema.class);
         var stringBranch = (StringSchema) root.getOneOf().get(1);
         assertThat(stringBranch.getMinLength()).isEqualTo(3);
+    }
+
+    @Test
+    void numberTypeParsesAsNumericSchema() {
+        // when
+        var document = SchemaParser.parse("""
+                {"type": "number"}
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(NumericSchema.class);
+        var schema = (NumericSchema) document.getRoot();
+        assertThat(schema.getType()).isEqualTo("number");
+    }
+
+    @Test
+    void integerTypePreservesTypeField() {
+        // when
+        var document = SchemaParser.parse("""
+                {"type": "integer"}
+                """);
+
+        // then
+        var schema = (NumericSchema) document.getRoot();
+        assertThat(schema.getType()).isEqualTo("integer");
+    }
+
+    @Test
+    void numberTypeParsesFractionalConstraints() {
+        // when
+        var document = SchemaParser.parse("""
+                {"type": "number", "minimum": 1.5, "maximum": 10.5}
+                """);
+
+        // then
+        var schema = (NumericSchema) document.getRoot();
+        assertThat(schema.getMinimum()).isEqualByComparingTo(new BigDecimal("1.5"));
+        assertThat(schema.getMaximum()).isEqualByComparingTo(new BigDecimal("10.5"));
     }
 
     private static Path testResourcePath(String relativePath) throws URISyntaxException {

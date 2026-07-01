@@ -3,287 +3,392 @@ package se.plilja.jsonschemagen.internal.generator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 
 class NumericGeneratorTest {
 
+    @Nested
+    class IntegerTests {
 
-    @Test
-    void unconstrainedFirstCallProducesZero() {
-        var generator = new NumericGenerator(withSeed(42),new NumericSchema());
+        @Test
+        void unconstrainedFirstCallProducesZero() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").build());
 
-        // when
-        long result = generator.generate();
+            // when
+            var result = generator.generate();
 
-        // then
-        assertThat(result).isZero();
+            // then
+            assertThat(result).isEqualTo(0L);
+        }
+
+        @Test
+        void unconstrainedSubsequentCallsProduceVariedValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").build());
+            generator.generate();
+
+            // when
+            var values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .collect(Collectors.toSet());
+
+            // then
+            assertThat(values).hasSizeGreaterThan(1);
+        }
+
+        @Test
+        void boundedCoversBoundaryValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-10)).maximum(BigDecimal.valueOf(10)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).contains(-10L, 10L, 0L, -9L, 9L);
+        }
+
+        @Test
+        void boundedAllValuesWithinRange() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-10)).maximum(BigDecimal.valueOf(10)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() >= -10 && v.longValue() <= 10);
+        }
+
+        @Test
+        void minOnlyCoversBoundaryValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-5)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).contains(-5L, 0L, -4L);
+            assertThat(values).allMatch(v -> v.longValue() >= -5);
+        }
+
+        @Test
+        void exclusiveMinimumExcludesBound() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").maximum(BigDecimal.valueOf(10)).exclusiveMinimum(BigDecimal.valueOf(5)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() > 5 && v.longValue() <= 10);
+            assertThat(values).contains(6L, 10L);
+        }
+
+        @Test
+        void exclusiveMaximumExcludesBound() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-10)).exclusiveMaximum(BigDecimal.valueOf(5)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() >= -10 && v.longValue() < 5);
+            assertThat(values).contains(-10L, 4L);
+        }
+
+        @Test
+        void exclusiveBoundsOnlyCoversBoundaryValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").exclusiveMinimum(BigDecimal.valueOf(-10)).exclusiveMaximum(BigDecimal.valueOf(10)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() > -10 && v.longValue() < 10);
+            assertThat(values).contains(-9L, 9L, 0L, -8L, 8L);
+        }
+
+        @Test
+        void multipleOfAllValuesAreMultiples() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").multipleOf(BigDecimal.valueOf(7)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() % 7 == 0);
+        }
+
+        @Test
+        void unboundedMultipleOfStaysWithinJsonSafeIntegerRange() {
+            long safeMax = (1L << 53) - 1;
+            var generator = new NumericGenerator(withSeed(20260607L),
+                    NumericSchema.builder().type("integer").multipleOf(BigDecimal.valueOf(5)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 1000)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() >= -safeMax && v.longValue() <= safeMax);
+            assertThat(values).allMatch(v -> v.longValue() % 5 == 0);
+        }
+
+        @Test
+        void multipleOfWithBoundsCoversBoundaryMultiples() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-20)).maximum(BigDecimal.valueOf(20)).multipleOf(BigDecimal.valueOf(7)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() >= -20 && v.longValue() <= 20 && v.longValue() % 7 == 0);
+            assertThat(values).contains(-14L, 14L, 0L);
+        }
+
+        @Test
+        void multipleOfWithBoundsAllValuesValid() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-20)).maximum(BigDecimal.valueOf(20)).multipleOf(BigDecimal.valueOf(7)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() >= -20 && v.longValue() <= 20 && v.longValue() % 7 == 0);
+        }
+
+        @Test
+        void multipleOfWithExclusiveBounds() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").exclusiveMinimum(BigDecimal.valueOf(-15)).exclusiveMaximum(BigDecimal.valueOf(15)).multipleOf(BigDecimal.valueOf(7)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() > -15 && v.longValue() < 15 && v.longValue() % 7 == 0);
+            assertThat(values).contains(-14L, 14L, 0L);
+        }
+
+        @Test
+        void maxOnlyCoversBoundaryValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").maximum(BigDecimal.valueOf(5)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).contains(5L, 0L, 4L);
+            assertThat(values).allMatch(v -> v.longValue() <= 5);
+        }
+
+        @Test
+        void minimumAndExclusiveMinimumTakeTighterBound() {
+            // Both inclusive and exclusive lower bounds set — effective floor is max(0, 10+1) = 11.
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(0)).exclusiveMinimum(BigDecimal.valueOf(10)).maximum(BigDecimal.valueOf(20)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() > 10 && v.longValue() <= 20);
+            assertThat(values).contains(11L, 20L);
+        }
+
+        @Test
+        void maximumAndExclusiveMaximumTakeTighterBound() {
+            // Both inclusive and exclusive upper bounds set — effective ceiling is min(20, 10-1) = 9.
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(0)).maximum(BigDecimal.valueOf(20)).exclusiveMaximum(BigDecimal.valueOf(10)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.longValue() >= 0 && v.longValue() < 10);
+            assertThat(values).contains(0L, 9L);
+        }
+
+        @Test
+        void randomPhaseCoversEntireBoundedRange() {
+            // The deterministic phases (MIN, MAX, NEAR_*) emit each boundary exactly once.
+            // High counts (>50 in 1000 iterations) for both 0 and 3 prove the RANDOM phase
+            // itself reaches the upper bound, not just the MAX phase.
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(0)).maximum(BigDecimal.valueOf(3)).build());
+
+            // when
+            var counts = LongStream.range(0, 1000)
+                    .mapToObj(i -> generator.generate().longValue())
+                    .collect(Collectors.groupingBy(v -> v, Collectors.counting()));
+
+            // then
+            assertThat(counts.get(0L)).isGreaterThan(50L);
+            assertThat(counts.get(3L)).isGreaterThan(50L);
+        }
+
+        @Test
+        void randomPhaseCoversEntireMultipleOfRange() {
+            // The deterministic phases (MIN, MAX, NEAR_*) emit each boundary multiple exactly
+            // once. High counts (>50 in 1000 iterations) for both 0 and 20 prove the RANDOM
+            // phase itself reaches the highest valid multiple, not just the MAX phase.
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(0)).maximum(BigDecimal.valueOf(20)).multipleOf(BigDecimal.valueOf(5)).build());
+
+            // when
+            var counts = LongStream.range(0, 1000)
+                    .mapToObj(i -> generator.generate().longValue())
+                    .collect(Collectors.groupingBy(v -> v, Collectors.counting()));
+
+            // then
+            assertThat(counts.get(0L)).isGreaterThan(50L);
+            assertThat(counts.get(20L)).isGreaterThan(50L);
+        }
     }
 
-    @Test
-    void unconstrainedSubsequentCallsProduceVariedValues() {
-        var generator = new NumericGenerator(withSeed(42),new NumericSchema());
-        generator.generate();
+    @Nested
+    class NumberTests {
 
-        // when
-        var values = LongStream.range(0, 20)
-                .map(i -> generator.generate())
-                .boxed()
-                .collect(Collectors.toSet());
+        @Test
+        void numberTypeProducesDoubles() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("number").minimum(BigDecimal.valueOf(0)).maximum(BigDecimal.valueOf(10)).build());
 
-        // then
-        assertThat(values).hasSizeGreaterThan(1);
+            // when
+            var result = generator.generate();
+
+            // then
+            assertThat(result).isInstanceOf(Double.class);
+        }
+
+        @Test
+        void numberTypeBoundedAllValuesWithinRange() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("number").minimum(BigDecimal.valueOf(0)).maximum(BigDecimal.valueOf(10)).build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.doubleValue() >= 0.0 && v.doubleValue() <= 10.0);
+            assertThat(values).allMatch(v -> v instanceof Double);
+        }
+
+        @Test
+        void numberTypeWithFractionalBoundsStaysInRange() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("number")
+                            .minimum(new BigDecimal("1.5"))
+                            .maximum(new BigDecimal("4.5"))
+                            .build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.doubleValue() >= 1.5 && v.doubleValue() <= 4.5);
+        }
+
+        @Test
+        void numberTypeWithMultipleOfGeneratesValidMultiples() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("number")
+                            .minimum(new BigDecimal("0"))
+                            .maximum(new BigDecimal("10"))
+                            .multipleOf(new BigDecimal("0.5"))
+                            .build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> {
+                double d = v.doubleValue();
+                return d >= 0.0 && d <= 10.0 && Math.abs(d % 0.5) < 1e-9;
+            });
+        }
+
+        @Test
+        void numberTypeExclusiveBoundsExcludeEndpoints() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("number")
+                            .exclusiveMinimum(new BigDecimal("0"))
+                            .exclusiveMaximum(new BigDecimal("1"))
+                            .build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> v.doubleValue() > 0.0 && v.doubleValue() < 1.0);
+        }
+
+        @Test
+        void numberTypeUnconstrainedProducesVariedDoubles() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("number").build());
+            generator.generate();
+
+            // when
+            var values = LongStream.range(0, 20)
+                    .mapToObj(i -> generator.generate())
+                    .collect(Collectors.toSet());
+
+            // then
+            assertThat(values).hasSizeGreaterThan(1);
+            assertThat(values).allMatch(v -> v instanceof Double);
+        }
     }
 
-    @Test
-    void boundedCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-10L).maximum(10L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 20)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).contains(-10L, 10L, 0L, -9L, 9L);
-    }
-
-    @Test
-    void boundedAllValuesWithinRange() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-10L).maximum(10L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v >= -10 && v <= 10);
-    }
-
-    @Test
-    void minOnlyCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-5L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 20)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).contains(-5L, 0L, -4L);
-        assertThat(values).allMatch(v -> v >= -5);
-    }
-
-    @Test
-    void exclusiveMinimumExcludesBound() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().maximum(10L).exclusiveMinimum(5L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v > 5 && v <= 10);
-        assertThat(values).contains(6L, 10L);
-    }
-
-    @Test
-    void exclusiveMaximumExcludesBound() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-10L).exclusiveMaximum(5L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v >= -10 && v < 5);
-        assertThat(values).contains(-10L, 4L);
-    }
-
-    @Test
-    void exclusiveBoundsOnlyCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().exclusiveMinimum(-10L).exclusiveMaximum(10L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 20)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v > -10 && v < 10);
-        assertThat(values).contains(-9L, 9L, 0L, -8L, 8L);
-    }
-
-    @Test
-    void multipleOfAllValuesAreMultiples() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().multipleOf(7L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v % 7 == 0);
-    }
-
-    @Test
-    void unboundedMultipleOfStaysWithinJsonSafeIntegerRange() {
-        var safeMax = (1L << 53) - 1;
-        var generator = new NumericGenerator(withSeed(20260607L), NumericSchema.builder().multipleOf(5L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 1000)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v >= -safeMax && v <= safeMax);
-        assertThat(values).allMatch(v -> v % 5 == 0);
-    }
-
-    @Test
-    void multipleOfWithBoundsCoversBoundaryMultiples() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-20L).maximum(20L).multipleOf(7L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 20)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v >= -20 && v <= 20 && v % 7 == 0);
-        assertThat(values).contains(-14L, 14L, 0L);
-    }
-
-    @Test
-    void multipleOfWithBoundsAllValuesValid() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().minimum(-20L).maximum(20L).multipleOf(7L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v >= -20 && v <= 20 && v % 7 == 0);
-    }
-
-    @Test
-    void multipleOfWithExclusiveBounds() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().exclusiveMinimum(-15L).exclusiveMaximum(15L).multipleOf(7L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v > -15 && v < 15 && v % 7 == 0);
-        assertThat(values).contains(-14L, 14L, 0L);
-    }
-
-    @Test
-    void maxOnlyCoversBoundaryValues() {
-        var generator = new NumericGenerator(withSeed(42),NumericSchema.builder().maximum(5L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 20)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).contains(5L, 0L, 4L);
-        assertThat(values).allMatch(v -> v <= 5);
-    }
-
-    @Test
-    void minimumAndExclusiveMinimumTakeTighterBound() {
-        // Both inclusive and exclusive lower bounds set — effective floor is max(0, 10+1) = 11.
-        var generator = new NumericGenerator(withSeed(42),
-                NumericSchema.builder().minimum(0L).exclusiveMinimum(10L).maximum(20L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v > 10 && v <= 20);
-        assertThat(values).contains(11L, 20L);
-    }
-
-    @Test
-    void maximumAndExclusiveMaximumTakeTighterBound() {
-        // Both inclusive and exclusive upper bounds set — effective ceiling is min(20, 10-1) = 9.
-        var generator = new NumericGenerator(withSeed(42),
-                NumericSchema.builder().minimum(0L).maximum(20L).exclusiveMaximum(10L).build());
-
-        // when
-        List<Long> values = LongStream.range(0, 100)
-                .map(i -> generator.generate())
-                .boxed()
-                .toList();
-
-        // then
-        assertThat(values).allMatch(v -> v >= 0 && v < 10);
-        assertThat(values).contains(0L, 9L);
-    }
-
-    @Test
-    void randomPhaseCoversEntireBoundedRange() {
-        // The deterministic phases (MIN, MAX, NEAR_*) emit each boundary exactly once.
-        // High counts (>50 in 1000 iterations) for both 0 and 3 prove the RANDOM phase
-        // itself reaches the upper bound, not just the MAX phase.
-        var generator = new NumericGenerator(withSeed(42),
-                NumericSchema.builder().minimum(0L).maximum(3L).build());
-
-        // when
-        var counts = LongStream.range(0, 1000)
-                .map(i -> generator.generate())
-                .boxed()
-                .collect(Collectors.groupingBy(v -> v, Collectors.counting()));
-
-        // then
-        assertThat(counts.get(0L)).isGreaterThan(50L);
-        assertThat(counts.get(3L)).isGreaterThan(50L);
-    }
-
-    @Test
-    void randomPhaseCoversEntireMultipleOfRange() {
-        // The deterministic phases (MIN, MAX, NEAR_*) emit each boundary multiple exactly
-        // once. High counts (>50 in 1000 iterations) for both 0 and 20 prove the RANDOM
-        // phase itself reaches the highest valid multiple, not just the MAX phase.
-        var generator = new NumericGenerator(withSeed(42),
-                NumericSchema.builder().minimum(0L).maximum(20L).multipleOf(5L).build());
-
-        // when
-        var counts = LongStream.range(0, 1000)
-                .map(i -> generator.generate())
-                .boxed()
-                .collect(Collectors.groupingBy(v -> v, Collectors.counting()));
-
-        // then
-        assertThat(counts.get(0L)).isGreaterThan(50L);
-        assertThat(counts.get(20L)).isGreaterThan(50L);
-    }
 }
