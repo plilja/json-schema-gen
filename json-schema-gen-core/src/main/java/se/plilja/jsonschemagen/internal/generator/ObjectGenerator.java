@@ -4,11 +4,14 @@ import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result
 import static se.plilja.jsonschemagen.internal.util.CollectionUtil.reversed;
 import static se.plilja.jsonschemagen.internal.util.FunctionalUtil.coalesce;
 
+import com.github.curiousoddman.rgxgen.RgxGen;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
@@ -23,7 +26,11 @@ import se.plilja.jsonschemagen.internal.util.GraphUtil;
  */
 final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPhase, Map<String, Object>> {
 
+    private static final int PATTERN_NAME_RETRY_BUDGET = 20;
+
     private final ObjectSchema schema;
+    private final Map<Pattern, Schema> compiledPatternProperties;
+    private final Map<String, RgxGen> patternGenerators;
 
     enum GenerationPhase {
         MIN_PROPERTIES, MAX_PROPERTIES, RANDOM
@@ -32,6 +39,18 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     ObjectGenerator(GeneratorContext context, ObjectSchema schema) {
         super(GenerationPhase.class, context);
         this.schema = schema;
+        this.compiledPatternProperties = schema.getPatternProperties().entrySet().stream()
+                .collect(Collectors.toMap(
+                        e -> Pattern.compile(e.getKey()),
+                        Map.Entry::getValue,
+                        (a, b) -> a,
+                        LinkedHashMap::new));
+        this.patternGenerators = schema.getPatternProperties().keySet().stream()
+                .collect(Collectors.toMap(
+                        k -> k,
+                        RgxGen::parse,
+                        (a, b) -> a,
+                        LinkedHashMap::new));
     }
 
     @Override
@@ -120,7 +139,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         for (var property : selected) {
             var fieldSchema = effectiveSchema.getProperties().get(property);
             if (fieldSchema != null) {
-                obj.put(property, context.generatorFor(fieldSchema).generate());
+                obj.put(property, context.generatorFor(withMatchingPatternSchemas(fieldSchema, property)).generate());
             }
         }
         // Synthesize additional properties to reach targetCount
@@ -130,9 +149,11 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             while (obj.size() < targetCount) {
                 var name = "prop" + i++;
                 if (!obj.containsKey(name)) {
-                    obj.put(name, context.generatorFor(synthesizeSchema).generate());
+                    obj.put(name, context.generatorFor(withMatchingPatternSchemas(synthesizeSchema, name)).generate());
                 }
             }
+        } else if (obj.size() < targetCount && !effectiveSchema.getPatternProperties().isEmpty()) {
+            synthesizeFromPatterns(obj, targetCount);
         }
         if (obj.size() < effectiveMin) {
             throw new UnsatisfiableSchemaException(
@@ -171,12 +192,58 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
+     * Merges {@code fieldSchema} with the schema of every
+     * {@code patternProperties} entry whose regex matches {@code property},
+     * so the generated value satisfies both {@code properties} and
+     * {@code patternProperties} constraints.
+     */
+    private Schema withMatchingPatternSchemas(Schema fieldSchema, String property) {
+        var toMerge = new ArrayList<Schema>();
+        toMerge.add(fieldSchema);
+        for (var entry : compiledPatternProperties.entrySet()) {
+            if (entry.getKey().matcher(property).find()) {
+                toMerge.add(entry.getValue());
+            }
+        }
+        return SchemaMerger.merge(toMerge);
+    }
+
+    /**
+     * Synthesizes properties by generating names from {@code patternProperties}
+     * regexes, for use when {@code additionalProperties} is {@code false} but
+     * patterns can still supply fresh names.
+     *
+     * @throws UnsatisfiableSchemaException if distinct matching names cannot be
+     *         generated within the retry budget
+     */
+    private void synthesizeFromPatterns(Map<String, Object> obj, int targetCount) {
+        var generators = new ArrayList<>(patternGenerators.values());
+        int collisions = 0;
+        int generatorIndex = 0;
+        while (obj.size() < targetCount) {
+            if (collisions >= PATTERN_NAME_RETRY_BUDGET) {
+                throw new UnsatisfiableSchemaException(
+                        "Could not synthesize enough distinct property names matching patternProperties to satisfy minProperties ("
+                                + schema.getMinProperties() + ")");
+            }
+            var name = generators.get(generatorIndex % generators.size()).generate(context.random());
+            generatorIndex++;
+            if (obj.containsKey(name)) {
+                collisions++;
+            } else {
+                obj.put(name, context.generatorFor(withMatchingPatternSchemas(new UntypedSchema(), name)).generate());
+            }
+        }
+    }
+
+    /**
      * Whether the generator can invent new property names beyond those
      * declared in {@code properties}. True unless {@code additionalProperties}
-     * is {@code false}.
+     * is {@code false} and no {@code patternProperties} pattern can supply names.
      */
     private boolean canSynthesizeNewProperties() {
-        return synthesizableSchema() != null;
+        return synthesizableSchema() != null // We have a schema that we can synthesize properties from
+            || !schema.getPatternProperties().isEmpty(); // We can synthesize properties that match pattern properties
     }
 
     /**

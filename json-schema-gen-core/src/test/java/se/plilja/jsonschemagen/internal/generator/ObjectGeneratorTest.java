@@ -610,6 +610,132 @@ class ObjectGeneratorTest {
         });
     }
 
+    @Test
+    void namedPropertyMatchingPatternGetsPatternSchemaMerged() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"}
+                    },
+                    "patternProperties": {
+                        "^f": {"type": "string", "minLength": 3, "maxLength": 3}
+                    },
+                    "required": ["foo"]
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat((String) obj.get("foo")).hasSize(3));
+    }
+
+    @Test
+    void propertyMatchingMultiplePatternsGetsAllSchemasMerged() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "foo": {"type": "string"}
+                    },
+                    "patternProperties": {
+                        "^f": {"type": "string", "minLength": 2},
+                        "oo$": {"type": "string", "maxLength": 4}
+                    },
+                    "required": ["foo"]
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            var value = (String) obj.get("foo");
+            assertThat(value.length()).isGreaterThanOrEqualTo(2).isLessThanOrEqualTo(4);
+        });
+    }
+
+    @Test
+    void unmatchedPatternDoesNotConstrainProperty() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "bar": {"type": "string"}
+                    },
+                    "patternProperties": {
+                        "^f": {"maxLength": 1}
+                    },
+                    "required": ["bar"]
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).anySatisfy(obj -> assertThat(((String) obj.get("bar")).length()).isGreaterThan(1));
+    }
+
+    @Test
+    void additionalPropertiesFalseWithPatternPropertiesSynthesizesMatchingNames() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "patternProperties": {
+                        "^x[0-9]$": {"type": "string"}
+                    },
+                    "minProperties": 2
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).hasSizeGreaterThanOrEqualTo(2);
+            obj.keySet().forEach(key -> assertThat(key).matches("x[0-9]"));
+        });
+    }
+
+    @Test
+    void synthesizedPropertyMatchingPatternGetsPatternSchemaMerged() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "patternProperties": {
+                        "^prop": {"type": "string", "maxLength": 2}
+                    },
+                    "minProperties": 1
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).hasSizeGreaterThanOrEqualTo(1);
+            obj.forEach((key, value) -> assertThat((String) value).hasSizeLessThanOrEqualTo(2));
+        });
+    }
+
     private static ObjectGenerator objectGenerator(String json) {
         var document = SchemaParser.parse(json);
         return new ObjectGenerator(new GeneratorContext(document, new Random(42)), (ObjectSchema) document.getRoot());

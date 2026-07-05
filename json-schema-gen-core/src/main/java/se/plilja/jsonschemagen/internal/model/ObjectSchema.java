@@ -24,6 +24,15 @@ public final class ObjectSchema extends Schema {
     @Builder.Default
     private Map<String, Schema> properties = Map.of();
 
+    /**
+     * Maps regex patterns to schemas. A property whose name matches a
+     * pattern (via unanchored search, not full match) must additionally
+     * conform to that pattern's schema.
+     */
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
+    @Builder.Default
+    private Map<String, Schema> patternProperties = Map.of();
+
     @Builder.Default
     private List<String> required = List.of();
 
@@ -34,6 +43,12 @@ public final class ObjectSchema extends Schema {
     /**
      * Either {@link Boolean} ({@code true}/{@code false}) or a
      * {@link Schema} constraining additional property values.
+     *
+     * <p>Only applies to properties whose names are not listed in
+     * {@code properties} and do not match any pattern in
+     * {@code patternProperties}. In particular, {@code false} does not
+     * prevent properties that match a pattern — those are governed by the
+     * pattern's schema, not by this keyword.
      */
     @JsonDeserialize(using = BooleanOrSchemaDeserializer.class)
     private Object additionalProperties;

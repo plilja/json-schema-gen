@@ -147,12 +147,17 @@ final class SchemaMerger {
         for (var entry : b.getProperties().entrySet()) {
             properties.merge(entry.getKey(), entry.getValue(), SchemaMerger::mergeTwoSchemas);
         }
+        var patternProperties = new LinkedHashMap<>(a.getPatternProperties());
+        for (var entry : b.getPatternProperties().entrySet()) {
+            patternProperties.merge(entry.getKey(), entry.getValue(), SchemaMerger::mergeTwoSchemas);
+        }
         var required = Stream.concat(a.getRequired().stream(), b.getRequired().stream())
                 .distinct()
                 .toList();
         var additionalProperties = mergeBooleanOrSchema(a.getAdditionalProperties(), b.getAdditionalProperties());
         return ObjectSchema.builder()
                 .properties(properties)
+                .patternProperties(patternProperties)
                 .required(required)
                 .additionalProperties(additionalProperties)
                 .minProperties(maxNullable(a.getMinProperties(), b.getMinProperties()))

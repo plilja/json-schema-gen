@@ -1,0 +1,9 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "additionalProperties": false,
+    "patternProperties": {
+        "^x[0-9]$": {"type": "string", "maxLength": 5}
+    },
+    "minProperties": 2
+}
