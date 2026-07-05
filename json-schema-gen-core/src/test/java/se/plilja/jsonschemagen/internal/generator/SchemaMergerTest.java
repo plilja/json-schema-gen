@@ -275,6 +275,60 @@ class SchemaMergerTest {
         }
 
         @Test
+        void unionsNonOverlappingPatternProperties() {
+            var a = readSchema("""
+                    {
+                        "type": "object",
+                        "patternProperties": {"^a": {"type": "string"}}
+                    }
+                    """);
+            var b = readSchema("""
+                    {
+                        "type": "object",
+                        "patternProperties": {"^b": {"type": "integer"}}
+                    }
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {
+                        "type": "object",
+                        "patternProperties": {"^a": {"type": "string"}, "^b": {"type": "integer"}}
+                    }
+                    """));
+        }
+
+        @Test
+        void mergesOverlappingPatternPropertiesKeys() {
+            var a = readSchema("""
+                    {
+                        "type": "object",
+                        "patternProperties": {"^a": {"type": "string", "minLength": 3}}
+                    }
+                    """);
+            var b = readSchema("""
+                    {
+                        "type": "object",
+                        "patternProperties": {"^a": {"type": "string", "maxLength": 10}}
+                    }
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {
+                        "type": "object",
+                        "patternProperties": {"^a": {"type": "string", "minLength": 3, "maxLength": 10}}
+                    }
+                    """));
+        }
+
+        @Test
         void additionalPropertiesFalseWinsOverAbsent() {
             var a = readSchema("""
                     {
