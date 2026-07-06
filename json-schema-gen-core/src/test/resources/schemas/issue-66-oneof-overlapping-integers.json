@@ -1,0 +1,14 @@
+{
+  "oneOf": [
+    {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10
+    },
+    {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 20
+    }
+  ]
+}

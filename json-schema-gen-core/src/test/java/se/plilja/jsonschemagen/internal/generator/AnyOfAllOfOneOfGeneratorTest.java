@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
@@ -444,17 +445,28 @@ class AnyOfAllOfOneOfGeneratorTest {
         }
 
         @Test
-        void conflictingPatternsThrows() {
-            // when / then
-            assertThatThrownBy(() -> generatorFor("""
+        void conflictingPatternsKeepsLeftPattern() {
+            // SchemaMerger keeps the left pattern on conflict (regex
+            // intersection isn't implementable in general) and allOf is not
+            // re-validated against its original branches (unlike oneOf/anyOf)
+            // since doing so would conflict with this codebase's deliberate
+            // union-then-restrict additionalProperties semantics for allOf --
+            // see additionalPropertiesFalseMergedThroughAllOf. So this is a
+            // permanent best-effort behavior, not a caught error.
+            var generator = generatorFor("""
                     {
                         "allOf": [
                             {"type": "string", "pattern": "[a-z]+"},
                             {"type": "string", "pattern": "[A-Z]+"}
                         ]
                     }
-                    """))
-                    .isInstanceOf(UnsatisfiableSchemaException.class);
+                    """);
+
+            // when
+            var value = (String) generator.generate();
+
+            // then
+            assertThat(value).matches("[a-z]+");
         }
 
         @Test
@@ -605,6 +617,63 @@ class AnyOfAllOfOneOfGeneratorTest {
                     }
                     """))
                     .isInstanceOf(UnsatisfiableSchemaException.class);
+        }
+
+        @Test
+        @SuppressWarnings("unchecked")
+        void overlappingPermissiveObjectBranchesEachMatchExactlyOneBranch() {
+            // Neither branch forbids the other's property (no
+            // additionalProperties: false), so a naively-generated value
+            // can satisfy both -- disambiguation must break the tie.
+            var document = SchemaParser.parse("""
+                    {
+                        "oneOf": [
+                            {"type": "object", "properties": {"a": {"type": "string"}}},
+                            {"type": "object", "properties": {"b": {"type": "string"}}}
+                        ]
+                    }
+                    """);
+            var context = new GeneratorContext(document, new Random(42));
+            var generator = new AnyOfAllOfOneOfGenerator(context, document.getRoot());
+            var validator = new SchemaValidator(context);
+
+            // when
+            var values = Stream.generate(generator::generate)
+                    .limit(30)
+                    .map(v -> (Map<String, Object>) v)
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> validator.satisfies(v, document.getRoot()));
+        }
+
+        @Test
+        void patternDiscriminatedBranchesEachMatchExactlyOneBranch() {
+            // The zero-branches-valid case from issue #66: without
+            // validation, the generator ignores the branch-specific
+            // patterns entirely and produces an unconstrained string.
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "required": ["file"],
+                        "properties": {"file": {"type": "string"}},
+                        "oneOf": [
+                            {"properties": {"file": {"pattern": "\\\\.css$"}}},
+                            {"properties": {"file": {"pattern": "\\\\.js$"}}}
+                        ]
+                    }
+                    """);
+            var context = new GeneratorContext(document, new Random(42));
+            var generator = new AnyOfAllOfOneOfGenerator(context, document.getRoot());
+            var validator = new SchemaValidator(context);
+
+            // when
+            var values = Stream.generate(generator::generate)
+                    .limit(30)
+                    .toList();
+
+            // then
+            assertThat(values).allMatch(v -> validator.satisfies(v, document.getRoot()));
         }
     }
 
@@ -867,6 +936,7 @@ class AnyOfAllOfOneOfGeneratorTest {
                 assertThat(m.get("kind")).isIn("x", "y");
             });
         }
+
     }
 
     private static AnyOfAllOfOneOfGenerator generatorFor(String json) {

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
+import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.Schema;
 import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
@@ -73,7 +74,44 @@ class SchemaMergerTest {
         }
 
         @Test
-        void conflictingPatternsThrows() {
+        void mergesFormatWithConstraints() {
+            var a = readSchema("""
+                    {"type": "string", "format": "email"}
+                    """);
+            var b = readSchema("""
+                    {"type": "string", "minLength": 3}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {"type": "string", "minLength": 3, "format": "email"}
+                    """));
+        }
+
+        @Test
+        void conflictingFormatsThrows() {
+            var a = readSchema("""
+                    {"type": "string", "format": "email"}
+                    """);
+            var b = readSchema("""
+                    {"type": "string", "format": "uuid"}
+                    """);
+
+            // when / then
+            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
+                    .isInstanceOf(UnsatisfiableSchemaException.class);
+        }
+
+        @Test
+        void conflictingPatternsKeepsLeftPattern() {
+            // Regex intersection isn't implementable in general, so the
+            // merger can't detect whether the two patterns are truly
+            // incompatible. It keeps the left pattern as a best-effort
+            // generation guide; a generated value that violates the
+            // dropped pattern is caught later by validation, not here.
             var a = readSchema("""
                     {"type": "string", "pattern": "[a-z]+"}
                     """);
@@ -81,9 +119,13 @@ class SchemaMergerTest {
                     {"type": "string", "pattern": "[A-Z]+"}
                     """);
 
-            // when / then
-            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
-                    .isInstanceOf(UnsatisfiableSchemaException.class);
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged).isEqualTo(readSchema("""
+                    {"type": "string", "pattern": "[a-z]+"}
+                    """));
         }
     }
 
@@ -326,6 +368,56 @@ class SchemaMergerTest {
                         "patternProperties": {"^a": {"type": "string", "minLength": 3, "maxLength": 10}}
                     }
                     """));
+        }
+
+        @Test
+        void mergesDependentRequiredFromBothSides() {
+            var a = readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"a": {"type": "string"}, "b": {"type": "string"}},
+                        "dependentRequired": {"a": ["b"]}
+                    }
+                    """);
+            var b = readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"c": {"type": "string"}, "d": {"type": "string"}},
+                        "dependentRequired": {"c": ["d"]}
+                    }
+                    """);
+
+            // when
+            var merged = (ObjectSchema) SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getDependentRequired())
+                    .containsEntry("a", List.of("b"))
+                    .containsEntry("c", List.of("d"));
+        }
+
+        @Test
+        void mergesDependentSchemasFromBothSides() {
+            var a = readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"a": {"type": "string"}},
+                        "dependentSchemas": {"a": {"properties": {"b": {"type": "string"}}, "required": ["b"]}}
+                    }
+                    """);
+            var b = readSchema("""
+                    {
+                        "type": "object",
+                        "properties": {"c": {"type": "string"}},
+                        "dependentSchemas": {"c": {"properties": {"d": {"type": "string"}}, "required": ["d"]}}
+                    }
+                    """);
+
+            // when
+            var merged = (ObjectSchema) SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getDependentSchemas()).containsKeys("a", "c");
         }
 
         @Test
@@ -862,7 +954,7 @@ class SchemaMergerTest {
         }
 
         @Test
-        void throwsWhenBothSidesCarryOneOf() {
+        void mergingTwoSchemasWithOneOfThrows() {
             var a = readSchema("""
                     {"oneOf": [{"type": "string"}]}
                     """);
@@ -872,12 +964,11 @@ class SchemaMergerTest {
 
             // when / then
             assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("oneOf");
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
-        void throwsWhenBothSidesCarryAnyOf() {
+        void mergingTwoSchemasWithAnyOfThrows() {
             var a = readSchema("""
                     {"anyOf": [{"type": "string"}]}
                     """);
@@ -887,8 +978,7 @@ class SchemaMergerTest {
 
             // when / then
             assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("anyOf");
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 

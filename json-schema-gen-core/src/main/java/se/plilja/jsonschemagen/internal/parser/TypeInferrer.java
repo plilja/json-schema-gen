@@ -124,6 +124,7 @@ final class TypeInferrer {
                         inferMissingTypes(value);
                     }
                 }
+                default -> throw new IllegalStateException("Unhandled field type: " + field.getValue());
             }
         }
         inferMissingTypesInDependencies(objectNode);

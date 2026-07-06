@@ -1,0 +1,19 @@
+{
+    "type": "object",
+    "required": ["file"],
+    "properties": {
+        "file": {"type": "string"}
+    },
+    "anyOf": [
+        {
+            "properties": {
+                "file": {"pattern": "\\.css$"}
+            }
+        },
+        {
+            "properties": {
+                "file": {"pattern": "\\.js$"}
+            }
+        }
+    ]
+}

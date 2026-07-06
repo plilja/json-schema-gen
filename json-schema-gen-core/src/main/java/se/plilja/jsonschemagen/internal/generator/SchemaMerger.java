@@ -8,6 +8,7 @@ import static se.plilja.jsonschemagen.internal.util.MathUtil.minNullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
@@ -117,15 +118,22 @@ final class SchemaMerger {
                 .build();
     }
 
+    /**
+     * Merges two string schemas by tightening length bounds and combining
+     * format constraints. Conflicting patterns keep the left side's;
+     * conflicting formats throw {@link UnsatisfiableSchemaException}.
+     */
     private static StringSchema mergeStringSchemas(StringSchema a, StringSchema b) {
-        if (a.getPattern() != null && b.getPattern() != null) {
+        if (a.getFormat() != null && b.getFormat() != null && a.getFormat() != b.getFormat()) {
             throw new UnsatisfiableSchemaException(
-                    "Cannot merge branches with conflicting pattern constraints");
+                    "Cannot merge branches with conflicting format constraints: "
+                            + a.getFormat() + " vs " + b.getFormat());
         }
         return StringSchema.builder()
                 .minLength(maxNullable(a.getMinLength(), b.getMinLength()))
                 .maxLength(minNullable(a.getMaxLength(), b.getMaxLength()))
                 .pattern(coalesce(a.getPattern(), b.getPattern()))
+                .format(coalesce(a.getFormat(), b.getFormat()))
                 .build();
     }
 
@@ -162,7 +170,35 @@ final class SchemaMerger {
                 .additionalProperties(additionalProperties)
                 .minProperties(maxNullable(a.getMinProperties(), b.getMinProperties()))
                 .maxProperties(minNullable(a.getMaxProperties(), b.getMaxProperties()))
+                .dependentRequired(mergeDependentRequired(a.getDependentRequired(), b.getDependentRequired()))
+                .dependentSchemas(mergeDependentSchemas(a.getDependentSchemas(), b.getDependentSchemas()))
                 .build();
+    }
+
+    /**
+     * Merges dependent-required maps by unioning the required-property
+     * lists for each trigger key.
+     */
+    private static Map<String, List<String>> mergeDependentRequired(
+            Map<String, List<String>> a, Map<String, List<String>> b) {
+        var result = new LinkedHashMap<>(a);
+        for (var entry : b.entrySet()) {
+            result.merge(entry.getKey(), entry.getValue(),
+                    (x, y) -> Stream.concat(x.stream(), y.stream()).distinct().toList());
+        }
+        return result;
+    }
+
+    /**
+     * Merges dependent-schemas maps by recursively merging the schema
+     * for each shared trigger key.
+     */
+    private static Map<String, Schema> mergeDependentSchemas(Map<String, Schema> a, Map<String, Schema> b) {
+        var result = new LinkedHashMap<>(a);
+        for (var entry : b.entrySet()) {
+            result.merge(entry.getKey(), entry.getValue(), SchemaMerger::mergeTwoSchemas);
+        }
+        return result;
     }
 
     private static ArraySchema mergeArraySchemas(ArraySchema a, ArraySchema b) {
