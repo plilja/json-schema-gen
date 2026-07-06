@@ -55,6 +55,7 @@ public final class SchemaParser {
         try {
             var rootNode = MAPPER.readTree(jsonSchema);
             rewriteTypeArrays(rootNode);
+            TypeInferrer.inferMissingTypes(rootNode);
             var rootSchema = MAPPER.treeToValue(rootNode, Schema.class);
             var refs = new HashMap<String, Schema>();
             // Self-reference always resolves to the same root Schema instance so phase state
@@ -186,6 +187,7 @@ public final class SchemaParser {
                                 + "': no base URI. Use SchemaParser.parse(Path) to parse from a file.");
             }
             rewriteTypeArrays(node);
+            TypeInferrer.inferMissingTypes(node);
             return node;
         } catch (IOException e) {
             throw new UncheckedIOException(e);

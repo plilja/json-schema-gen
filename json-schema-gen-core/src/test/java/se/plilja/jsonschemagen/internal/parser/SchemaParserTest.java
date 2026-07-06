@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import java.util.List;
 import se.plilja.jsonschemagen.api.JsonSchemaGenerator;
+import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.NullSchema;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
@@ -843,6 +844,135 @@ class SchemaParserTest {
         var schema = (NumericSchema) document.getRoot();
         assertThat(schema.getMinimum()).isEqualByComparingTo(new BigDecimal("1.5"));
         assertThat(schema.getMaximum()).isEqualByComparingTo(new BigDecimal("10.5"));
+    }
+
+    @Test
+    void untypedSchemaWithPropertiesIsInferredAsObject() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "properties": {
+                        "name": {"type": "string"}
+                    }
+                }
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(ObjectSchema.class);
+        var schema = (ObjectSchema) document.getRoot();
+        assertThat(schema.getProperties()).containsKey("name");
+    }
+
+    @Test
+    void untypedSchemaWithPatternIsInferredAsString() {
+        // when
+        var document = SchemaParser.parse("""
+                {"pattern": "^abc$"}
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(StringSchema.class);
+        var schema = (StringSchema) document.getRoot();
+        assertThat(schema.getPattern()).isEqualTo("^abc$");
+    }
+
+    @Test
+    void untypedSchemaWithMinimumIsInferredAsNumber() {
+        // when
+        var document = SchemaParser.parse("""
+                {"minimum": 5}
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(NumericSchema.class);
+        var schema = (NumericSchema) document.getRoot();
+        assertThat(schema.getMinimum()).isEqualByComparingTo(new BigDecimal("5"));
+    }
+
+    @Test
+    void untypedSchemaWithItemsIsInferredAsArray() {
+        // when
+        var document = SchemaParser.parse("""
+                {"items": {"type": "string"}}
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(ArraySchema.class);
+    }
+
+    @Test
+    void schemaWithKeywordsFromMultipleTypesStaysUntyped() {
+        // when
+        var document = SchemaParser.parse("""
+                {"pattern": "^abc$", "minimum": 5}
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(UntypedSchema.class);
+    }
+
+    @Test
+    void untypedSchemaNestedInsidePropertiesIsInferred() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "file": {"pattern": "\\\\.css$"}
+                    }
+                }
+                """);
+
+        // then
+        var root = (ObjectSchema) document.getRoot();
+        var file = root.getProperties().get("file");
+        assertThat(file).isInstanceOf(StringSchema.class);
+        assertThat(((StringSchema) file).getPattern()).isEqualTo("\\.css$");
+    }
+
+    @Test
+    void constPayloadResemblingASchemaIsNotWalkedForTypeInference() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "const": {"pattern": "^abc$"}
+                }
+                """);
+
+        // then
+        assertThat(document.getRoot().getConstValue())
+                .isEqualTo(java.util.Map.of("pattern", "^abc$"));
+    }
+
+    @Test
+    void untypedSchemaNestedInsideOneOfBranchIsInferred() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "oneOf": [
+                        {"properties": {"file": {"pattern": "\\\\.css$"}}}
+                    ]
+                }
+                """);
+
+        // then
+        var branch = (ObjectSchema) document.getRoot().getOneOf().get(0);
+        var file = branch.getProperties().get("file");
+        assertThat(file).isInstanceOf(StringSchema.class);
+        assertThat(((StringSchema) file).getPattern()).isEqualTo("\\.css$");
+    }
+
+    @Test
+    void schemaWithNoTypeImplyingKeywordsStaysUntyped() {
+        // when
+        var document = SchemaParser.parse("""
+                {
+                    "enum": ["a", "b"]
+                }
+                """);
+
+        // then
+        assertThat(document.getRoot()).isInstanceOf(UntypedSchema.class);
     }
 
     private static Path testResourcePath(String relativePath) throws URISyntaxException {
