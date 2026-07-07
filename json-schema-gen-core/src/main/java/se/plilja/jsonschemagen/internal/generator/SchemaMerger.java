@@ -101,19 +101,11 @@ final class SchemaMerger {
             throw new UnsatisfiableSchemaException(
                     "const value " + constValue + " is not in enum " + enumValues);
         }
-        if (a.getOneOf() != null && b.getOneOf() != null) {
-            throw new IllegalArgumentException(
-                    "Merging two schemas that both carry oneOf is not supported");
-        }
-        if (a.getAnyOf() != null && b.getAnyOf() != null) {
-            throw new IllegalArgumentException(
-                    "Merging two schemas that both carry anyOf is not supported");
-        }
         return merged.toBuilder()
                 .constValue(constValue)
                 .enumValues(enumValues)
-                .oneOf(coalesce(a.getOneOf(), b.getOneOf()))
-                .anyOf(coalesce(a.getAnyOf(), b.getAnyOf()))
+                .oneOf(concat(a.getOneOf(), b.getOneOf()))
+                .anyOf(concat(a.getAnyOf(), b.getAnyOf()))
                 .allOf(concat(a.getAllOf(), b.getAllOf()))
                 .build();
     }

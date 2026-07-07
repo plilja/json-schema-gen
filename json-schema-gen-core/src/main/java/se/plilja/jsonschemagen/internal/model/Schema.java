@@ -2,6 +2,7 @@ package se.plilja.jsonschemagen.internal.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -50,14 +51,24 @@ public abstract sealed class Schema
     @JsonProperty("$ref")
     private String ref;
 
-    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
-    private List<Schema> oneOf;
+    private List<List<Schema>> oneOf;
 
-    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
-    private List<Schema> anyOf;
+    private List<List<Schema>> anyOf;
 
     @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     private List<Schema> allOf;
+
+    @JsonSetter("oneOf")
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
+    private void setOneOf(List<Schema> oneOf) {
+        this.oneOf = oneOf == null ? null : List.of(List.copyOf(oneOf));
+    }
+
+    @JsonSetter("anyOf")
+    @JsonDeserialize(contentUsing = SchemaDeserializer.class)
+    private void setAnyOf(List<Schema> anyOf) {
+        this.anyOf = anyOf == null ? null : List.of(List.copyOf(anyOf));
+    }
 
     public abstract SchemaBuilder<?, ?> toBuilder();
 }

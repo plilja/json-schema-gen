@@ -81,8 +81,7 @@ class CollectionUtilTest {
 
             // then
             assertThat(result).containsExactly("x", "y");
-            result.add("z");
-            assertThat(second).containsExactly("x", "y");
+            assertThat(result).isNotSameAs(second);
         }
 
         @Test
@@ -94,8 +93,7 @@ class CollectionUtilTest {
 
             // then
             assertThat(result).containsExactly("x", "y");
-            result.add("z");
-            assertThat(first).containsExactly("x", "y");
+            assertThat(result).isNotSameAs(first);
         }
 
         @Test

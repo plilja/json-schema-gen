@@ -939,6 +939,125 @@ class AnyOfAllOfOneOfGeneratorTest {
 
     }
 
+    @Nested
+    class MultiGroup {
+
+        @Test
+        @SuppressWarnings("unchecked")
+        void twoOneOfGroupsViaAllOfSatisfiesBothGroups() {
+            var generator = generatorFor("""
+                    {
+                        "allOf": [
+                            {
+                                "type": "object",
+                                "oneOf": [
+                                    {"properties": {"color": {"const": "red"}}, "required": ["color"]},
+                                    {"properties": {"color": {"const": "blue"}}, "required": ["color"]}
+                                ]
+                            },
+                            {
+                                "type": "object",
+                                "oneOf": [
+                                    {"properties": {"size": {"const": "small"}}, "required": ["size"]},
+                                    {"properties": {"size": {"const": "large"}}, "required": ["size"]}
+                                ]
+                            }
+                        ]
+                    }
+                    """);
+
+            // when
+            var values = Stream.generate(generator::generate)
+                    .limit(20)
+                    .map(v -> (Map<String, Object>) v)
+                    .toList();
+
+            // then
+            assertThat(values).allSatisfy(m -> {
+                assertThat(m.get("color")).isIn("red", "blue");
+                assertThat(m.get("size")).isIn("small", "large");
+            });
+        }
+
+        @Test
+        @SuppressWarnings("unchecked")
+        void twoAnyOfGroupsViaAllOfSatisfiesBothGroups() {
+            var generator = generatorFor("""
+                    {
+                        "allOf": [
+                            {
+                                "type": "object",
+                                "anyOf": [
+                                    {"properties": {"a": {"type": "string"}}, "required": ["a"]},
+                                    {"properties": {"b": {"type": "string"}}, "required": ["b"]}
+                                ]
+                            },
+                            {
+                                "type": "object",
+                                "anyOf": [
+                                    {"properties": {"x": {"type": "integer"}}, "required": ["x"]},
+                                    {"properties": {"y": {"type": "integer"}}, "required": ["y"]}
+                                ]
+                            }
+                        ]
+                    }
+                    """);
+
+            // when
+            var values = Stream.generate(generator::generate)
+                    .limit(20)
+                    .map(v -> (Map<String, Object>) v)
+                    .toList();
+
+            // then
+            assertThat(values).allSatisfy(m -> {
+                assertThat(m.containsKey("a") || m.containsKey("b"))
+                        .as("at least one of a/b from group 1")
+                        .isTrue();
+                assertThat(m.containsKey("x") || m.containsKey("y"))
+                        .as("at least one of x/y from group 2")
+                        .isTrue();
+            });
+        }
+
+        @Test
+        @SuppressWarnings("unchecked")
+        void unequalOneOfGroupSizesWrapsShortGroup() {
+            var generator = generatorFor("""
+                    {
+                        "allOf": [
+                            {
+                                "type": "object",
+                                "oneOf": [
+                                    {"properties": {"x": {"const": "a"}}, "required": ["x"]},
+                                    {"properties": {"x": {"const": "b"}}, "required": ["x"]}
+                                ]
+                            },
+                            {
+                                "type": "object",
+                                "oneOf": [
+                                    {"properties": {"y": {"const": "1"}}, "required": ["y"]},
+                                    {"properties": {"y": {"const": "2"}}, "required": ["y"]},
+                                    {"properties": {"y": {"const": "3"}}, "required": ["y"]}
+                                ]
+                            }
+                        ]
+                    }
+                    """);
+
+            // when — exhaustive count = max(2, 3) = 3
+            var first = (Map<String, Object>) generator.generate();
+            var second = (Map<String, Object>) generator.generate();
+            var third = (Map<String, Object>) generator.generate();
+
+            // then — all 3 y-branches covered, x wraps
+            assertThat(List.of(first.get("y"), second.get("y"), third.get("y")))
+                    .containsExactlyInAnyOrder("1", "2", "3");
+            assertThat(List.of(first.get("x"), second.get("x"), third.get("x")))
+                    .contains("a", "b");
+        }
+    }
+
     private static AnyOfAllOfOneOfGenerator generatorFor(String json) {
         var document = SchemaParser.parse(json);
         return new AnyOfAllOfOneOfGenerator(

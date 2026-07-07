@@ -67,13 +67,17 @@ final class SchemaValidator {
             }
         }
         if (schema.getAnyOf() != null) {
-            if (schema.getAnyOf().stream().noneMatch(branch -> satisfies(value, branch, refDepth))) {
-                return false;
+            for (var group : schema.getAnyOf()) {
+                if (group.stream().noneMatch(branch -> satisfies(value, branch, refDepth))) {
+                    return false;
+                }
             }
         }
         if (schema.getOneOf() != null) {
-            if (schema.getOneOf().stream().filter(branch -> satisfies(value, branch, refDepth)).count() != 1) {
-                return false;
+            for (var group : schema.getOneOf()) {
+                if (group.stream().filter(branch -> satisfies(value, branch, refDepth)).count() != 1) {
+                    return false;
+                }
             }
         }
         return switch (schema) {

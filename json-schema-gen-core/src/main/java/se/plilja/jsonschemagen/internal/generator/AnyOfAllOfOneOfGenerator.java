@@ -32,12 +32,11 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
     private static final List<Object> DISAMBIGUATION_PROBES =
             List.of(Boolean.TRUE, BigDecimal.ONE, "disambiguation-probe", List.of(), Map.of());
 
-    private final Schema parent;
     private final Schema validationTarget;
     private final SchemaValidator validator;
     private final Schema base;
-    private final List<Schema> oneOfSubSchemas;
-    private final List<Schema> anyOfSubSchemas;
+    private final List<List<Schema>> oneOfGroups;
+    private final List<List<Schema>> anyOfGroups;
     private int index = 0;
 
     enum GenerationPhase {
@@ -46,18 +45,80 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
 
     AnyOfAllOfOneOfGenerator(GeneratorContext context, Schema parent) {
         super(GenerationPhase.class, context);
-        this.parent = parent;
-        // allOf is excluded: SchemaMerger treats additionalProperties:false
-        // as applying to the union of all branches' properties, so per-branch
-        // validation would reject values that are correct under our merge.
-        this.validationTarget = parent.toBuilder().allOf(null).build();
         this.validator = new SchemaValidator(context);
+
+        var merged = mergeParentWithAllOf(context, parent);
+
+        // Create a base schema without oneOf and anyOf, we will pick from fields
+        // anyOfGroups and oneOfGroups when building values
+        this.base = merged.toBuilder()
+                .oneOf(null)
+                .anyOf(null)
+                .build();
+
+        // Collect all oneOf/anyOf groups: parent's own + those from allOf merge
+        var allOneOfGroups = new ArrayList<List<Schema>>();
+        if (parent.getOneOf() != null) {
+            allOneOfGroups.addAll(parent.getOneOf());
+        }
+        if (merged.getOneOf() != null) {
+            allOneOfGroups.addAll(merged.getOneOf());
+        }
+
+        var allAnyOfGroups = new ArrayList<List<Schema>>();
+        if (parent.getAnyOf() != null) {
+            allAnyOfGroups.addAll(parent.getAnyOf());
+        }
+        if (merged.getAnyOf() != null) {
+            allAnyOfGroups.addAll(merged.getAnyOf());
+        }
+
+        // allOf is excluded from validation: SchemaMerger treats
+        // additionalProperties:false as applying to the union of all
+        // branches' properties, so per-branch validation would reject
+        // values that are correct under our merge.
+        this.validationTarget = parent.toBuilder()
+                .allOf(null)
+                .oneOf(allOneOfGroups.isEmpty() ? null : allOneOfGroups)
+                .anyOf(allAnyOfGroups.isEmpty() ? null : allAnyOfGroups)
+                .build();
+
+        // Merge the base schema into all the oneOf groups
+        this.oneOfGroups = new ArrayList<>();
+        for (var group : allOneOfGroups) {
+            var mergedGroup = SchemaMerger.mergeEachWith(group, base);
+            if (mergedGroup.isEmpty()) {
+                throw new UnsatisfiableSchemaException(
+                        "oneOf has no branch compatible with the parent schema");
+            }
+            oneOfGroups.add(mergedGroup);
+        }
+
+        // Merge the base schema into all the anyOf groups
+        this.anyOfGroups = new ArrayList<>();
+        for (var group : allAnyOfGroups) {
+            var mergedGroup = SchemaMerger.mergeEachWith(group, base);
+            if (mergedGroup.isEmpty()) {
+                throw new UnsatisfiableSchemaException(
+                        "anyOf has no branch compatible with the parent schema");
+            }
+            anyOfGroups.add(mergedGroup);
+        }
+    }
+
+    /**
+     * Merges the parent schema with its {@code allOf} branches, resolving
+     * {@code $ref}s and skipping self-referential ones. Returns the parent
+     * itself (minus combining keywords) when no {@code allOf} is present.
+     */
+    private static Schema mergeParentWithAllOf(GeneratorContext context, Schema parent) {
         var baseTemp = parent.toBuilder()
                 .oneOf(null)
                 .anyOf(null)
                 .allOf(null)
                 .build();
 
+        Schema merged;
         if (parent.getAllOf() != null) {
             if (parent.getAllOf().isEmpty()) {
                 throw new IllegalArgumentException("allOf must contain at least one sub-schema");
@@ -78,30 +139,11 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
                 }
             }
             branches.add(baseTemp);
-            this.base = SchemaMerger.merge(branches);
+            merged = SchemaMerger.merge(branches);
         } else {
-            this.base = baseTemp;
+            merged = baseTemp;
         }
-
-        if (parent.getOneOf() != null) {
-            this.oneOfSubSchemas = SchemaMerger.mergeEachWith(parent.getOneOf(), base);
-            if (oneOfSubSchemas.isEmpty()) {
-                throw new UnsatisfiableSchemaException(
-                        "oneOf has no branch compatible with the parent schema");
-            }
-        } else {
-            this.oneOfSubSchemas = List.of();
-        }
-
-        if (parent.getAnyOf() != null) {
-            this.anyOfSubSchemas = SchemaMerger.mergeEachWith(parent.getAnyOf(), base);
-            if (anyOfSubSchemas.isEmpty()) {
-                throw new UnsatisfiableSchemaException(
-                        "anyOf has no branch compatible with the parent schema");
-            }
-        } else {
-            this.anyOfSubSchemas = List.of();
-        }
+        return merged;
     }
 
     @Override
@@ -113,7 +155,13 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
     protected GenerationPhase advanceToNext(GenerationPhase current) {
         if (current == GenerationPhase.EXHAUSTIVE) {
             index++;
-            int maxSize = Math.max(oneOfSubSchemas.size(), anyOfSubSchemas.size());
+            int maxSize = 0;
+            for (var group : oneOfGroups) {
+                maxSize = Math.max(maxSize, group.size());
+            }
+            for (var group : anyOfGroups) {
+                maxSize = Math.max(maxSize, group.size());
+            }
             if (maxSize > 0 && index < maxSize) {
                 return GenerationPhase.EXHAUSTIVE;
             }
@@ -150,28 +198,29 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
 
     /**
      * Repairs a candidate that satisfies more than one {@code oneOf} branch
-     * by mutating a property that an extra matching branch constrains —
-     * but the candidate doesn't yet violate — to a value that breaks it,
-     * so only the intended branch still matches. Returns {@code null} if
-     * the candidate isn't an object, doesn't over-match, or no such
-     * property/value combination exists.
+     * in any group by mutating a property that an extra matching branch
+     * constrains to a value that breaks it, so only the intended branch
+     * still matches per group. Returns {@code null} if the candidate
+     * isn't an object, doesn't over-match, or no fix exists.
      */
     @SuppressWarnings("unchecked")
     private Object disambiguateOneOf(Object candidate) {
-        if (!(candidate instanceof Map<?, ?> rawMap) || parent.getOneOf() == null) {
+        if (!(candidate instanceof Map<?, ?> rawMap) || validationTarget.getOneOf() == null) {
             return null;
         }
         var map = (Map<String, Object>) rawMap;
-        var matching = parent.getOneOf().stream()
-                .filter(branch -> validator.satisfies(candidate, branch))
-                .toList();
-        if (matching.size() <= 1) {
-            return null;
-        }
-        for (var extraMatch : matching.subList(1, matching.size())) {
-            var mutated = violateBranch(map, extraMatch);
-            if (mutated != null && validator.satisfies(mutated, validationTarget)) {
-                return mutated;
+        for (var group : validationTarget.getOneOf()) {
+            var matching = group.stream()
+                    .filter(branch -> validator.satisfies(candidate, branch))
+                    .toList();
+            if (matching.size() <= 1) {
+                continue;
+            }
+            for (var extraMatch : matching.subList(1, matching.size())) {
+                var mutated = violateBranch(map, extraMatch);
+                if (mutated != null && validator.satisfies(mutated, validationTarget)) {
+                    return mutated;
+                }
             }
         }
         return null;
@@ -200,53 +249,55 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
     }
 
     /**
-     * Selects the next branch from each sub-schema list using the current
-     * index, wrapping around shorter lists. Falls back to the base schema
-     * when no oneOf or anyOf branches exist (allOf-only case).
+     * Selects the next branch from each group using the current index,
+     * wrapping around shorter groups. Falls back to the base schema
+     * when no oneOf or anyOf groups exist (allOf-only case).
      */
     private Schema pickExhaustive() {
-        if (oneOfSubSchemas.isEmpty() && anyOfSubSchemas.isEmpty()) {
+        if (oneOfGroups.isEmpty() && anyOfGroups.isEmpty()) {
             return base;
         }
-        if (anyOfSubSchemas.isEmpty()) {
-            return oneOfSubSchemas.get(index % oneOfSubSchemas.size());
+        var picks = new ArrayList<Schema>();
+        for (var group : oneOfGroups) {
+            picks.add(group.get(index % group.size()));
         }
-        if (oneOfSubSchemas.isEmpty()) {
-            return anyOfSubSchemas.get(index % anyOfSubSchemas.size());
+        for (var group : anyOfGroups) {
+            picks.add(group.get(index % group.size()));
         }
-        return SchemaMerger.merge(List.of(
-                oneOfSubSchemas.get(index % oneOfSubSchemas.size()),
-                anyOfSubSchemas.get(index % anyOfSubSchemas.size())));
+        return SchemaMerger.merge(picks);
     }
 
     /**
-     * Selects a random oneOf branch and a random anyOf subset, merging them.
-     * Falls back to the base schema when no oneOf or anyOf branches exist.
+     * Selects a random oneOf branch per group and a random anyOf subset
+     * per group, merging all picks. Falls back to the base schema when
+     * no groups exist.
      */
     private Schema pickRandom() {
-        if (oneOfSubSchemas.isEmpty() && anyOfSubSchemas.isEmpty()) {
+        if (oneOfGroups.isEmpty() && anyOfGroups.isEmpty()) {
             return base;
         }
-        if (anyOfSubSchemas.isEmpty()) {
-            return RandomUtil.randomOne(oneOfSubSchemas, context.random());
+        var picks = new ArrayList<Schema>();
+        for (var group : oneOfGroups) {
+            picks.add(RandomUtil.randomOne(group, context.random()));
         }
-        if (oneOfSubSchemas.isEmpty()) {
-            return mergeRandomAnyOfSubset();
+        for (var group : anyOfGroups) {
+            picks.add(mergeRandomAnyOfSubset(group));
         }
-        var oneOfPick = RandomUtil.randomOne(oneOfSubSchemas, context.random());
-        var anyOfPick = mergeRandomAnyOfSubset();
-        return SchemaMerger.merge(List.of(oneOfPick, anyOfPick));
+        if (picks.size() == 1) {
+            return picks.getFirst();
+        }
+        return SchemaMerger.merge(picks);
     }
 
     /**
-     * Picks a random subset of anyOf branches and merges them. Starts with
-     * a random size N and falls back to smaller subsets if the merge is
-     * unsatisfiable. N=1 always succeeds because each branch was proven
-     * compatible with the base during construction.
+     * Picks a random subset of anyOf branches from a single group and
+     * merges them. Starts with a random size N and falls back to smaller
+     * subsets if the merge is unsatisfiable. N=1 always succeeds because
+     * each branch was proven compatible with the base during construction.
      */
-    private Schema mergeRandomAnyOfSubset() {
-        for (int n = context.random().nextInt(anyOfSubSchemas.size()) + 1; n >= 1; n--) {
-            var subset = RandomUtil.randomSubset(anyOfSubSchemas, n, context.random());
+    private Schema mergeRandomAnyOfSubset(List<Schema> group) {
+        for (int n = context.random().nextInt(group.size()) + 1; n >= 1; n--) {
+            var subset = RandomUtil.randomSubset(group, n, context.random());
             try {
                 return SchemaMerger.merge(subset);
             } catch (UnsatisfiableSchemaException ignored) {
