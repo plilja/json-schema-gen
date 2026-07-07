@@ -655,9 +655,10 @@ class SchemaParserTest {
             // then
             var root = document.getRoot();
             assertThat(root).isInstanceOf(UntypedSchema.class);
-            assertThat(root.getOneOf()).hasSize(2);
-            assertThat(root.getOneOf().get(0)).isInstanceOf(StringSchema.class);
-            assertThat(root.getOneOf().get(1)).isInstanceOf(NullSchema.class);
+            assertThat(root.getOneOf()).hasSize(1);
+            assertThat(root.getOneOf().getFirst()).hasSize(2);
+            assertThat(root.getOneOf().getFirst().get(0)).isInstanceOf(StringSchema.class);
+            assertThat(root.getOneOf().getFirst().get(1)).isInstanceOf(NullSchema.class);
         }
 
         @Test
@@ -669,9 +670,10 @@ class SchemaParserTest {
 
             // then
             var root = document.getRoot();
-            assertThat(root.getOneOf()).hasSize(2);
-            assertThat(root.getOneOf().get(0)).isInstanceOf(NumericSchema.class);
-            var stringBranch = (StringSchema) root.getOneOf().get(1);
+            assertThat(root.getOneOf()).hasSize(1);
+            assertThat(root.getOneOf().getFirst()).hasSize(2);
+            assertThat(root.getOneOf().getFirst().get(0)).isInstanceOf(NumericSchema.class);
+            var stringBranch = (StringSchema) root.getOneOf().getFirst().get(1);
             assertThat(stringBranch.getMinLength()).isEqualTo(3);
         }
 
@@ -981,7 +983,7 @@ class SchemaParserTest {
                     """);
 
             // then
-            var branch = (ObjectSchema) document.getRoot().getOneOf().get(0);
+            var branch = (ObjectSchema) document.getRoot().getOneOf().getFirst().get(0);
             var file = branch.getProperties().get("file");
             assertThat(file).isInstanceOf(StringSchema.class);
             assertThat(((StringSchema) file).getPattern()).isEqualTo("\\.css$");

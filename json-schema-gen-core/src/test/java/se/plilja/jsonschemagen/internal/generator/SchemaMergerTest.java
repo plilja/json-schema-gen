@@ -900,7 +900,8 @@ class SchemaMergerTest {
 
             // then
             assertThat(merged.getOneOf()).isNotNull();
-            assertThat(merged.getOneOf()).hasSize(2);
+            assertThat(merged.getOneOf()).hasSize(1);
+            assertThat(merged.getOneOf().getFirst()).hasSize(2);
         }
 
         @Test
@@ -934,7 +935,8 @@ class SchemaMergerTest {
 
             // then
             assertThat(merged.getAnyOf()).isNotNull();
-            assertThat(merged.getAnyOf()).hasSize(2);
+            assertThat(merged.getAnyOf()).hasSize(1);
+            assertThat(merged.getAnyOf().getFirst()).hasSize(2);
         }
 
         @Test
@@ -954,7 +956,7 @@ class SchemaMergerTest {
         }
 
         @Test
-        void mergingTwoSchemasWithOneOfThrows() {
+        void concatenatesOneOfFromBothSides() {
             var a = readSchema("""
                     {"oneOf": [{"type": "string"}]}
                     """);
@@ -962,13 +964,17 @@ class SchemaMergerTest {
                     {"oneOf": [{"type": "integer"}]}
                     """);
 
-            // when / then
-            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
-                    .isInstanceOf(IllegalArgumentException.class);
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getOneOf()).hasSize(2);
+            assertThat(merged.getOneOf().get(0)).hasSize(1);
+            assertThat(merged.getOneOf().get(1)).hasSize(1);
         }
 
         @Test
-        void mergingTwoSchemasWithAnyOfThrows() {
+        void concatenatesAnyOfFromBothSides() {
             var a = readSchema("""
                     {"anyOf": [{"type": "string"}]}
                     """);
@@ -976,9 +982,13 @@ class SchemaMergerTest {
                     {"anyOf": [{"type": "integer"}]}
                     """);
 
-            // when / then
-            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
-                    .isInstanceOf(IllegalArgumentException.class);
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getAnyOf()).hasSize(2);
+            assertThat(merged.getAnyOf().get(0)).hasSize(1);
+            assertThat(merged.getAnyOf().get(1)).hasSize(1);
         }
     }
 

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
-import se.plilja.jsonschemagen.internal.model.Schema;
+import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 class SchemaValidatorTest {
@@ -19,72 +19,93 @@ class SchemaValidatorTest {
 
         @Test
         void stringValueSatisfiesStringSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abc", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("abc", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void nonStringValueFailsStringSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(5, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(5, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void stringWithinLengthBoundsSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string", "minLength": 2, "maxLength": 4}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abc", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("abc", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void stringShorterThanMinLengthFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string", "minLength": 2}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("a", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("a", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void stringLongerThanMaxLengthFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string", "maxLength": 2}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abc", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("abc", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void stringMatchingPatternSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string", "pattern": "\\\\.css$"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("style.css", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("style.css", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void stringNotMatchingPatternFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "string", "pattern": "\\\\.css$"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("style.js", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("style.js", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
     }
 
@@ -93,72 +114,93 @@ class SchemaValidatorTest {
 
         @Test
         void numberWithinRangeSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer", "minimum": 1, "maximum": 10}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(5L, fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies(5L, document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void numberBelowMinimumFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer", "minimum": 1}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(0L, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(0L, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void numberAboveMaximumFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer", "maximum": 10}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(11L, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(11L, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void numberEqualToExclusiveMinimumFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer", "exclusiveMinimum": 5}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(5L, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(5L, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void numberEqualToExclusiveMaximumFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer", "exclusiveMaximum": 5}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(5L, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(5L, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void numberNotMultipleOfFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer", "multipleOf": 5}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(7L, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(7L, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void nonIntegerValueFailsIntegerSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "integer"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(1.5, fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(1.5, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
     }
 
@@ -167,42 +209,54 @@ class SchemaValidatorTest {
 
         @Test
         void valueMatchingConstSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"const": "fixed"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("fixed", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("fixed", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void valueNotMatchingConstFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"const": "fixed"}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("other", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("other", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void valueInEnumSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"enum": ["a", "b"]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("a", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("a", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void valueNotInEnumFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"enum": ["a", "b"]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("c", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("c", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
     }
 
@@ -211,62 +265,80 @@ class SchemaValidatorTest {
 
         @Test
         void objectWithValidPropertiesSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("name", "abc"), fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies(Map.of("name", "abc"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void objectMissingRequiredPropertyFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of(), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(Map.of(), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void objectWithPropertyViolatingItsSchemaFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "object", "properties": {"name": {"type": "string", "minLength": 3}}}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("name", "ab"), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(Map.of("name", "ab"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void objectWithDisallowedAdditionalPropertyFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "object", "properties": {"name": {"type": "string"}}, "additionalProperties": false}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("name", "abc", "extra", "x"), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(Map.of("name", "abc", "extra", "x"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void objectWithinPropertyCountBoundsSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "object", "minProperties": 1, "maxProperties": 2}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("a", 1), fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies(Map.of("a", 1), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void objectWithTooFewPropertiesFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "object", "minProperties": 2}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("a", 1), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(Map.of("a", 1), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
     }
 
@@ -275,72 +347,93 @@ class SchemaValidatorTest {
 
         @Test
         void arrayWithValidItemsSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "items": {"type": "string"}}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a", "b"), fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies(List.of("a", "b"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void arrayWithInvalidItemFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "items": {"type": "string"}}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a", 1), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(List.of("a", 1), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void arrayWithinLengthBoundsSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "minItems": 1, "maxItems": 2}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a"), fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies(List.of("a"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void arrayShorterThanMinItemsFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "minItems": 2}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a"), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(List.of("a"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void arrayViolatingPrefixItemSchemaFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "prefixItems": [{"type": "string"}, {"type": "integer"}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a", "not-an-integer"), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(List.of("a", "not-an-integer"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void arrayNotContainingRequiredElementFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "contains": {"type": "integer"}}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a", "b"), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(List.of("a", "b"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void arrayContainingRequiredElementSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"type": "array", "contains": {"type": "integer"}}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(List.of("a", 1), fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies(List.of("a", 1), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
     }
 
@@ -349,43 +442,55 @@ class SchemaValidatorTest {
 
         @Test
         void valueSatisfyingRefTargetSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {
                         "type": "object",
                         "properties": {"tag": {"$ref": "#/definitions/Tag"}},
                         "definitions": {"Tag": {"type": "string", "minLength": 3}}
                     }
                     """);
-            var tagSchema = ((ObjectSchema) fixture.schema).getProperties().get("tag");
+            var validator = createValidator(document);
+            var tagSchema = ((ObjectSchema) document.getRoot()).getProperties().get("tag");
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abcd", tagSchema)).isTrue();
+            // when
+            var result = validator.satisfies("abcd", tagSchema);
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void valueViolatingRefTargetFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {
                         "type": "object",
                         "properties": {"tag": {"$ref": "#/definitions/Tag"}},
                         "definitions": {"Tag": {"type": "string", "minLength": 3}}
                     }
                     """);
-            var tagSchema = ((ObjectSchema) fixture.schema).getProperties().get("tag");
+            var validator = createValidator(document);
+            var tagSchema = ((ObjectSchema) document.getRoot()).getProperties().get("tag");
 
-            // when / then
-            assertThat(fixture.validator.satisfies("a", tagSchema)).isFalse();
+            // when
+            var result = validator.satisfies("a", tagSchema);
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         @Timeout(5)
         void cyclicSelfReferencingSchemaDoesNotInfiniteLoop() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"$ref": "#"}
                     """);
+            var validator = createValidator(document);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("anything", fixture.schema)).isTrue();
+            // when
+            var result = validator.satisfies("anything", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
     }
 
@@ -394,67 +499,85 @@ class SchemaValidatorTest {
 
         @Test
         void valueSatisfyingAllAllOfBranchesSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"allOf": [{"type": "string", "minLength": 2}, {"type": "string", "maxLength": 5}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abc", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("abc", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void valueViolatingOneAllOfBranchFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"allOf": [{"type": "string", "minLength": 2}, {"type": "string", "maxLength": 5}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("a", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("a", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void valueSatisfyingAtLeastOneBranchPerAnyOfClauseSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"anyOf": [{"type": "string", "minLength": 5}, {"type": "string", "pattern": "^a"}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abc", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("abc", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void valueSatisfyingNoBranchOfAnyOfClauseFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"anyOf": [{"type": "string", "minLength": 5}, {"type": "string", "pattern": "^z"}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("abc", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("abc", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void valueSatisfyingExactlyOneBranchPerOneOfClauseSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"oneOf": [{"pattern": "\\\\.css$"}, {"pattern": "\\\\.js$"}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("style.css", fixture.schema)).isTrue();
+            // when
+            var result = createValidator(document).satisfies("style.css", document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
 
         @Test
         void valueSatisfyingZeroBranchesOfOneOfClauseFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"oneOf": [{"pattern": "\\\\.css$"}, {"pattern": "\\\\.js$"}]}
                     """);
 
-            // when / then
-            assertThat(fixture.validator.satisfies("style.png", fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies("style.png", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
         }
 
         @Test
         void valueSatisfyingMultipleBranchesOfOneOfClauseFailsSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"oneOf": [{"type": "object", "properties": {"a": {"type": "string"}}},
                                {"type": "object", "properties": {"b": {"type": "string"}}}]}
                     """);
@@ -462,28 +585,76 @@ class SchemaValidatorTest {
             // "a" is an unconstrained additional property under the second
             // branch too, so both branches match -- oneOf requires exactly one.
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("a", "x"), fixture.schema)).isFalse();
+            // when
+            var result = createValidator(document).satisfies(Map.of("a", "x"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void multiGroupOneOfRequiresExactlyOneMatchPerGroup() {
+            var a = SchemaParser.parse("""
+                    {"oneOf": [{"pattern": "\\\\.css$"}, {"pattern": "\\\\.js$"}]}
+                    """).getRoot();
+            var b = SchemaParser.parse("""
+                    {"oneOf": [{"pattern": "^src/"}, {"pattern": "^lib/"}]}
+                    """).getRoot();
+            var merged = SchemaMerger.merge(List.of(a, b));
+            var document = new SchemaDocument(merged, Map.of());
+            var validator = createValidator(document);
+
+            // when
+            var srcCss = validator.satisfies("src/style.css", merged);
+            var cssOnly = validator.satisfies("style.css", merged);
+            var srcTs = validator.satisfies("src/app.ts", merged);
+
+            // then
+            assertThat(srcCss).isTrue();
+            assertThat(cssOnly).isFalse();
+            assertThat(srcTs).isFalse();
+        }
+
+        @Test
+        void multiGroupAnyOfRequiresAtLeastOneMatchPerGroup() {
+            var a = SchemaParser.parse("""
+                    {"anyOf": [{"pattern": "^a"}, {"pattern": "^b"}]}
+                    """).getRoot();
+            var b = SchemaParser.parse("""
+                    {"anyOf": [{"pattern": "x$"}, {"pattern": "y$"}]}
+                    """).getRoot();
+            var merged = SchemaMerger.merge(List.of(a, b));
+            var document = new SchemaDocument(merged, Map.of());
+            var validator = createValidator(document);
+
+            // when
+            var ax = validator.satisfies("ax", merged);
+            var az = validator.satisfies("az", merged);
+            var cx = validator.satisfies("cx", merged);
+
+            // then
+            assertThat(ax).isTrue();
+            assertThat(az).isFalse();
+            assertThat(cx).isFalse();
         }
 
         @Test
         void valueSatisfyingExactlyOneOfTwoDiscriminatedBranchesSatisfiesSchema() {
-            var fixture = fixtureFor("""
+            var document = SchemaParser.parse("""
                     {"oneOf": [{"type": "object", "properties": {"a": {"type": "string"}}, "additionalProperties": false},
                                {"type": "object", "properties": {"b": {"type": "string"}}, "additionalProperties": false}]}
                     """);
+            var validator = createValidator(document);
 
-            // when / then
-            assertThat(fixture.validator.satisfies(Map.of("a", "x"), fixture.schema)).isTrue();
+            // when
+            var result = validator.satisfies(Map.of("a", "x"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
         }
     }
 
-    private static Fixture fixtureFor(String json) {
-        var document = SchemaParser.parse(json);
-        var validator = new SchemaValidator(new GeneratorContext(document, new Random(42)));
-        return new Fixture(validator, document.getRoot());
-    }
-
-    private record Fixture(SchemaValidator validator, Schema schema) {
+    private static SchemaValidator createValidator(SchemaDocument document) {
+        return new SchemaValidator(new GeneratorContext(document, new Random(42)));
     }
 }

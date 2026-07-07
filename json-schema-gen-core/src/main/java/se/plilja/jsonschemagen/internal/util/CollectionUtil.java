@@ -19,14 +19,14 @@ public final class CollectionUtil {
      */
     public static <T> List<T> concat(List<T> a, List<T> b) {
         if (a == null) {
-            return b == null ? null : new ArrayList<>(b);
+            return b == null ? null : List.copyOf(b);
         }
         if (b == null) {
-            return new ArrayList<>(a);
+            return List.copyOf(a);
         }
         var result = new ArrayList<>(a);
         result.addAll(b);
-        return result;
+        return List.copyOf(result);
     }
 
     /**
