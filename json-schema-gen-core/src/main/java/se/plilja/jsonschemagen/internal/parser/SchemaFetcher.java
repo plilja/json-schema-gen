@@ -5,6 +5,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 
 /**
  * Fetches a JSON Schema document over HTTP(S).
@@ -27,8 +28,14 @@ final class SchemaFetcher {
      *     non-2xx status code
      */
     static String fetch(String url) throws IOException {
-        try (var client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
-            var request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+        try (var client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build()) {
+            var request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofSeconds(30))
+                    .GET()
+                    .build();
             var response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IOException(
