@@ -271,6 +271,58 @@ class NumericGeneratorTest {
         }
 
         @Test
+        void fractionalExclusiveMinimumProducesValidValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer")
+                            .exclusiveMinimum(new BigDecimal("0.5"))
+                            .maximum(BigDecimal.valueOf(1))
+                            .build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then — only valid integer is 1 (1 > 0.5 and 1 ≤ 1)
+            assertThat(values).allMatch(v -> v.longValue() == 1L);
+        }
+
+        @Test
+        void fractionalExclusiveMaximumProducesValidValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer")
+                            .minimum(BigDecimal.valueOf(1))
+                            .exclusiveMaximum(new BigDecimal("1.5"))
+                            .build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then — only valid integer is 1 (1 ≥ 1 and 1 < 1.5)
+            assertThat(values).allMatch(v -> v.longValue() == 1L);
+        }
+
+        @Test
+        void fractionalExclusiveBothBoundsProducesValidValues() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer")
+                            .exclusiveMinimum(new BigDecimal("-0.5"))
+                            .exclusiveMaximum(new BigDecimal("1.5"))
+                            .build());
+
+            // when
+            List<Number> values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then — valid integers are 0 and 1 (0 > -0.5, 1 < 1.5)
+            assertThat(values).allMatch(v -> v.longValue() >= 0L && v.longValue() <= 1L);
+            assertThat(values).contains(0L, 1L);
+        }
+
+        @Test
         void fractionalMultipleOfProducesIntegerMultiples() {
             var generator = new NumericGenerator(withSeed(42),
                     NumericSchema.builder().type("integer")

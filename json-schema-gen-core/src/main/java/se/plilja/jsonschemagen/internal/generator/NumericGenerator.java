@@ -18,6 +18,7 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
 
     private static final BigDecimal MAX_SAFE_INTEGER = new BigDecimal(1L << 53);
     private static final BigDecimal NEG_MAX_SAFE_INTEGER = MAX_SAFE_INTEGER.negate();
+    private static final BigDecimal EPSILON = new BigDecimal("1E-20");
 
     private final NumericSchema schema;
 
@@ -113,26 +114,20 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
 
     /**
      * Converts an exclusive lower bound to the closest inclusive value.
-     * For integers this is {@code exMin + 1}. For numbers, uses
-     * {@link Math#nextUp(double)} to find the nearest representable
-     * double above the bound.
      */
     private BigDecimal makeExclusiveMinInclusive(BigDecimal exMin) {
         if (schema.isInteger()) {
-            return exMin.add(BigDecimal.ONE);
+            return exMin.add(EPSILON);
         }
         return BigDecimal.valueOf(Math.nextUp(exMin.doubleValue()));
     }
 
     /**
      * Converts an exclusive upper bound to the closest inclusive value.
-     * For integers this is {@code exMax - 1}. For numbers, uses
-     * {@link Math#nextDown(double)} to find the nearest representable
-     * double below the bound.
      */
     private BigDecimal makeExclusiveMaxInclusive(BigDecimal exMax) {
         if (schema.isInteger()) {
-            return exMax.subtract(BigDecimal.ONE);
+            return exMax.subtract(EPSILON);
         }
         return BigDecimal.valueOf(Math.nextDown(exMax.doubleValue()));
     }
