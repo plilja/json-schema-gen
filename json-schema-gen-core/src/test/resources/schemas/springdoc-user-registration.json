@@ -1,0 +1,43 @@
+{
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+        },
+        "email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 1
+        },
+        "age": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 150,
+            "minimum": 0
+        },
+        "role": {
+            "type": "string",
+            "enum": [
+                "ADMIN",
+                "USER",
+                "MODERATOR"
+            ]
+        },
+        "phone": {
+            "type": "string",
+            "pattern": "\\+?[1-9]\\d{1,14}"
+        },
+        "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8
+        }
+    },
+    "required": [
+        "email",
+        "name",
+        "role"
+    ]
+}

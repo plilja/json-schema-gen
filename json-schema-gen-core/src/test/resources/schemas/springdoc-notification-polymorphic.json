@@ -1,0 +1,121 @@
+{
+    "oneOf": [
+        {
+            "$ref": "#/definitions/EmailNotification"
+        },
+        {
+            "$ref": "#/definitions/PushNotification"
+        },
+        {
+            "$ref": "#/definitions/SmsNotification"
+        }
+    ],
+    "definitions": {
+        "EmailNotification": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/Notification"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "recipient": {
+                            "type": "string",
+                            "format": "email",
+                            "minLength": 1
+                        },
+                        "subject": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "body": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    }
+                }
+            ],
+            "required": [
+                "body",
+                "recipient",
+                "subject",
+                "type"
+            ]
+        },
+        "Notification": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "sentAt": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            },
+            "required": [
+                "type"
+            ]
+        },
+        "PushNotification": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/Notification"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "body": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "deviceToken": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    }
+                }
+            ],
+            "required": [
+                "body",
+                "deviceToken",
+                "title",
+                "type"
+            ]
+        },
+        "SmsNotification": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/Notification"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "phoneNumber": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "\\+?[1-9]\\d{1,14}"
+                        },
+                        "message": {
+                            "type": "string",
+                            "minLength": 1
+                        }
+                    }
+                }
+            ],
+            "required": [
+                "message",
+                "phoneNumber",
+                "type"
+            ]
+        }
+    }
+}

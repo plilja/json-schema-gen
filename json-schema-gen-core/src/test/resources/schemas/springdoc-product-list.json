@@ -1,0 +1,72 @@
+{
+    "type": "array",
+    "items": {
+        "$ref": "#/definitions/Product"
+    },
+    "definitions": {
+        "Category": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Category"
+                    }
+                }
+            },
+            "required": [
+                "name"
+            ]
+        },
+        "Product": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 0
+                },
+                "description": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number",
+                    "maximum": 999999.99,
+                    "minimum": 0.0
+                },
+                "website": {
+                    "type": "string",
+                    "format": "uri"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "maxItems": 20,
+                    "minItems": 0
+                },
+                "category": {
+                    "$ref": "#/definitions/Category"
+                }
+            },
+            "required": [
+                "name"
+            ]
+        }
+    }
+}
