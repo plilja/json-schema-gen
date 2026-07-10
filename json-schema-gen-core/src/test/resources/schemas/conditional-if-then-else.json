@@ -1,0 +1,18 @@
+{
+    "type": "object",
+    "required": ["country"],
+    "properties": {
+        "country": {"enum": ["US", "CA"]}
+    },
+    "if": {
+        "properties": {"country": {"const": "US"}}
+    },
+    "then": {
+        "properties": {"zipCode": {"type": "string", "pattern": "^[0-9]{5}$"}},
+        "required": ["zipCode"]
+    },
+    "else": {
+        "properties": {"postalCode": {"type": "string", "pattern": "^[A-Z][0-9][A-Z]$"}},
+        "required": ["postalCode"]
+    }
+}

@@ -990,6 +990,70 @@ class SchemaMergerTest {
             assertThat(merged.getAnyOf().get(0)).hasSize(1);
             assertThat(merged.getAnyOf().get(1)).hasSize(1);
         }
+
+        @Test
+        void propagatesConditionalFromLeftSide() {
+            var a = readSchema("""
+                    {
+                        "if": {"properties": {"status": {"const": "ok"}}},
+                        "then": {"required": ["data"]},
+                        "else": {"required": ["error"]}
+                    }
+                    """);
+            var b = readSchema("""
+                    {"type": "object"}
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getIfSchema()).isEqualTo(a.getIfSchema());
+            assertThat(merged.getThenSchema()).isEqualTo(a.getThenSchema());
+            assertThat(merged.getElseSchema()).isEqualTo(a.getElseSchema());
+        }
+
+        @Test
+        void propagatesConditionalFromRightSide() {
+            var a = readSchema("""
+                    {"type": "object"}
+                    """);
+            var b = readSchema("""
+                    {
+                        "if": {"properties": {"status": {"const": "ok"}}},
+                        "then": {"required": ["data"]}
+                    }
+                    """);
+
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getIfSchema()).isEqualTo(b.getIfSchema());
+            assertThat(merged.getThenSchema()).isEqualTo(b.getThenSchema());
+        }
+
+        @Test
+        void bothSidesDeclaringConditionalThrows() {
+            // Two independent conditionals cannot be represented in a single
+            // if/then/else field -- deferred to issue #83.
+            var a = readSchema("""
+                    {
+                        "if": {"properties": {"a": {"const": "x"}}},
+                        "then": {"required": ["p"]}
+                    }
+                    """);
+            var b = readSchema("""
+                    {
+                        "if": {"properties": {"b": {"const": "y"}}},
+                        "then": {"required": ["q"]}
+                    }
+                    """);
+
+            // when / then
+            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
+                    .isInstanceOf(UnsatisfiableSchemaException.class);
+        }
     }
 
     @Nested

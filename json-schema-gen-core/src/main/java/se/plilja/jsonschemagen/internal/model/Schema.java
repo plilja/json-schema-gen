@@ -19,9 +19,7 @@ import lombok.experimental.SuperBuilder;
  * <p>Each concrete subclass represents one JSON Schema {@code type} keyword
  * value (string, integer, boolean, null, object, array) and carries the
  * type-specific constraint fields. Cross-cutting keywords that can appear
- * on any schema ({@code const}, {@code enum}, {@code $ref}, and the
- * combining keywords {@code oneOf}/{@code anyOf}/{@code allOf}) are fields
- * on this base class.
+ * on any schema are fields on this base class.
  */
 @Getter
 @EqualsAndHashCode
@@ -57,6 +55,18 @@ public abstract sealed class Schema
 
     @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     private List<Schema> allOf;
+
+    @JsonProperty("if")
+    @JsonDeserialize(using = SchemaDeserializer.class)
+    private Schema ifSchema;
+
+    @JsonProperty("then")
+    @JsonDeserialize(using = SchemaDeserializer.class)
+    private Schema thenSchema;
+
+    @JsonProperty("else")
+    @JsonDeserialize(using = SchemaDeserializer.class)
+    private Schema elseSchema;
 
     @JsonSetter("oneOf")
     @JsonDeserialize(contentUsing = SchemaDeserializer.class)

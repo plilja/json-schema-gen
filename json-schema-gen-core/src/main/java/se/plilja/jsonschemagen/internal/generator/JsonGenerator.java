@@ -61,6 +61,9 @@ public final class JsonGenerator {
         if (schema.getEnumValues() != null) {
             return new EnumGenerator(context, schema.getEnumValues());
         }
+        if (schema.getIfSchema() != null) {
+            return new IfThenElseGenerator(context, schema);
+        }
         if (schema.getOneOf() != null
                 || schema.getAnyOf() != null
                 || schema.getAllOf() != null) {

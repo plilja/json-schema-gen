@@ -654,6 +654,108 @@ class SchemaValidatorTest {
         }
     }
 
+    @Nested
+    class ConditionalValidation {
+
+        private static final String IF_THEN_ELSE = """
+                {
+                    "type": "object",
+                    "properties": {"status": {"type": "string"}},
+                    "if": {"properties": {"status": {"const": "ok"}}},
+                    "then": {"required": ["data"]},
+                    "else": {"required": ["error"]}
+                }
+                """;
+
+        @Test
+        void valueMatchingIfAndThenSatisfiesSchema() {
+            var document = SchemaParser.parse(IF_THEN_ELSE);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(Map.of("status", "ok", "data", "payload"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        void valueMatchingIfButViolatingThenFailsSchema() {
+            var document = SchemaParser.parse(IF_THEN_ELSE);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(Map.of("status", "ok"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void valueFailingIfAndSatisfyingElseSatisfiesSchema() {
+            var document = SchemaParser.parse(IF_THEN_ELSE);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(Map.of("status", "bad", "error", "boom"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        void valueFailingIfAndViolatingElseFailsSchema() {
+            var document = SchemaParser.parse(IF_THEN_ELSE);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(Map.of("status", "bad"), document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void missingThenLeavesTheMatchingBranchUnconstrained() {
+            // if + else only: a value that matches if has no extra constraint.
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "properties": {"status": {"type": "string"}},
+                        "if": {"properties": {"status": {"const": "ok"}}},
+                        "else": {"required": ["error"]}
+                    }
+                    """);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(Map.of("status", "ok"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        void missingElseLeavesTheNonMatchingBranchUnconstrained() {
+            // if + then only: a value that fails if has no extra constraint.
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "properties": {"status": {"type": "string"}},
+                        "if": {"properties": {"status": {"const": "ok"}}},
+                        "then": {"required": ["data"]}
+                    }
+                    """);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(Map.of("status", "bad"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+    }
+
     private static SchemaValidator createValidator(SchemaDocument document) {
         return new SchemaValidator(new GeneratorContext(document, new Random(42)));
     }

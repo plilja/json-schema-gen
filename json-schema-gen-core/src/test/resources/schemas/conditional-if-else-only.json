@@ -1,0 +1,14 @@
+{
+    "type": "object",
+    "required": ["kind"],
+    "properties": {
+        "kind": {"enum": ["premium", "basic"]}
+    },
+    "if": {
+        "properties": {"kind": {"const": "premium"}}
+    },
+    "else": {
+        "properties": {"reason": {"type": "string", "minLength": 1}},
+        "required": ["reason"]
+    }
+}

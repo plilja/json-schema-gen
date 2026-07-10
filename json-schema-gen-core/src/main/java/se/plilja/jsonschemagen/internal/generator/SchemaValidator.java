@@ -80,6 +80,13 @@ final class SchemaValidator {
                 }
             }
         }
+        if (schema.getIfSchema() != null) {
+            var branch = satisfies(value, schema.getIfSchema(), refDepth)
+                    ? schema.getThenSchema() : schema.getElseSchema();
+            if (branch != null && !satisfies(value, branch, refDepth)) {
+                return false;
+            }
+        }
         return switch (schema) {
             case StringSchema s -> satisfiesString(value, s);
             case NumericSchema s -> satisfiesNumeric(value, s);

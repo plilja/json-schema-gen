@@ -22,6 +22,7 @@ import se.plilja.jsonschemagen.internal.model.NumericSchema;
 import se.plilja.jsonschemagen.internal.model.ObjectSchema;
 import se.plilja.jsonschemagen.internal.model.StringFormat;
 import se.plilja.jsonschemagen.internal.model.StringSchema;
+import se.plilja.jsonschemagen.internal.model.UnsatisfiableSchema;
 import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 
 class SchemaParserTest {
@@ -867,6 +868,80 @@ class SchemaParserTest {
             assertThat(root.getDependentSchemas()).containsKey("b");
             var depSchema = (ObjectSchema) root.getDependentSchemas().get("b");
             assertThat(depSchema.getRequired()).containsExactly("c");
+        }
+    }
+
+    @Nested
+    class Conditional {
+
+        @Test
+        void ifThenElseSubSchemasAreParsedOntoTheBaseSchema() {
+            // when
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "properties": {
+                            "status": {"type": "string"}
+                        },
+                        "if": {
+                            "properties": {"status": {"const": "ok"}}
+                        },
+                        "then": {
+                            "required": ["data"]
+                        },
+                        "else": {
+                            "required": ["error"]
+                        }
+                    }
+                    """);
+
+            // then
+            var root = document.getRoot();
+            assertThat(root.getIfSchema()).isInstanceOf(ObjectSchema.class);
+            assertThat(root.getThenSchema()).isInstanceOf(ObjectSchema.class);
+            assertThat(root.getElseSchema()).isInstanceOf(ObjectSchema.class);
+            assertThat(((ObjectSchema) root.getThenSchema()).getRequired()).containsExactly("data");
+            assertThat(((ObjectSchema) root.getElseSchema()).getRequired()).containsExactly("error");
+        }
+
+        @Test
+        void booleanSchemaFormsAreParsedForThenAndElse() {
+            // when
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "if": {"properties": {"status": {"const": "ok"}}},
+                        "then": false,
+                        "else": true
+                    }
+                    """);
+
+            // then
+            var root = document.getRoot();
+            assertThat(root.getThenSchema()).isInstanceOf(UnsatisfiableSchema.class);
+            assertThat(root.getElseSchema()).isInstanceOf(UntypedSchema.class);
+        }
+
+        @Test
+        void conditionalKeywordsSurviveOnAnUntypedParent() {
+            // A parent carrying only if/then/else has no type-implying keyword,
+            // so it stays untyped — the conditional fields must still be present.
+
+            // when
+            var document = SchemaParser.parse("""
+                    {
+                        "if": {"properties": {"kind": {"const": "a"}}},
+                        "then": {"required": ["x"]},
+                        "else": {"required": ["y"]}
+                    }
+                    """);
+
+            // then
+            var root = document.getRoot();
+            assertThat(root).isInstanceOf(UntypedSchema.class);
+            assertThat(root.getIfSchema()).isNotNull();
+            assertThat(root.getThenSchema()).isNotNull();
+            assertThat(root.getElseSchema()).isNotNull();
         }
     }
 

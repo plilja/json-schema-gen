@@ -101,13 +101,33 @@ final class SchemaMerger {
             throw new UnsatisfiableSchemaException(
                     "const value " + constValue + " is not in enum " + enumValues);
         }
-        return merged.toBuilder()
+        var builder = merged.toBuilder()
                 .constValue(constValue)
                 .enumValues(enumValues)
                 .oneOf(concat(a.getOneOf(), b.getOneOf()))
                 .anyOf(concat(a.getAnyOf(), b.getAnyOf()))
-                .allOf(concat(a.getAllOf(), b.getAllOf()))
-                .build();
+                .allOf(concat(a.getAllOf(), b.getAllOf()));
+        mergeConditional(builder, a, b);
+        return builder.build();
+    }
+
+    /**
+     * Carries an {@code if}/{@code then}/{@code else} conditional through the
+     * merge from whichever side declares one. A single conditional field
+     * cannot represent two independent conditionals, so merging two schemas
+     * that both declare one is rejected — see issue #83 for lifting this.
+     */
+    private static void mergeConditional(Schema.SchemaBuilder<?, ?> builder, Schema a, Schema b) {
+        if (a.getIfSchema() != null && b.getIfSchema() != null) {
+            throw new UnsatisfiableSchemaException(
+                    "Cannot merge two schemas that each declare if/then/else");
+        }
+        var conditional = a.getIfSchema() != null ? a : b;
+        if (conditional.getIfSchema() != null) {
+            builder.ifSchema(conditional.getIfSchema())
+                    .thenSchema(conditional.getThenSchema())
+                    .elseSchema(conditional.getElseSchema());
+        }
     }
 
     /**
