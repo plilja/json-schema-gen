@@ -1,0 +1,49 @@
+{
+    "properties": {
+        "street": {
+            "maxLength": 200,
+            "minLength": 0,
+            "title": "Street",
+            "type": "string"
+        },
+        "city": {
+            "maxLength": 100,
+            "minLength": 0,
+            "title": "City",
+            "type": "string"
+        },
+        "state": {
+            "anyOf": [
+                {
+                    "maxLength": 100,
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "State"
+        },
+        "zip_code": {
+            "minLength": 1,
+            "pattern": "\\d{5}(-\\d{4})?",
+            "title": "Zip Code",
+            "type": "string"
+        },
+        "country": {
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Country",
+            "type": "string"
+        }
+    },
+    "required": [
+        "street",
+        "city",
+        "zip_code",
+        "country"
+    ],
+    "title": "Address",
+    "type": "object"
+}

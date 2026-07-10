@@ -1,0 +1,141 @@
+{
+    "$defs": {
+        "Category": {
+            "properties": {
+                "name": {
+                    "minLength": 1,
+                    "title": "Name",
+                    "type": "string"
+                },
+                "children": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "$ref": "#/$defs/Category"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Children"
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "title": "Category",
+            "type": "object"
+        }
+    },
+    "properties": {
+        "id": {
+            "anyOf": [
+                {
+                    "format": "uuid",
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Id"
+        },
+        "name": {
+            "maxLength": 200,
+            "minLength": 0,
+            "title": "Name",
+            "type": "string"
+        },
+        "description": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Description"
+        },
+        "price": {
+            "anyOf": [
+                {
+                    "maximum": 999999.99,
+                    "minimum": 0.0,
+                    "type": "number"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Price"
+        },
+        "website": {
+            "anyOf": [
+                {
+                    "format": "uri",
+                    "minLength": 1,
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Website"
+        },
+        "metadata": {
+            "anyOf": [
+                {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "type": "object"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Metadata"
+        },
+        "tags": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "maxItems": 20,
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Tags"
+        },
+        "category": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Category"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null
+        }
+    },
+    "required": [
+        "name"
+    ],
+    "title": "Product",
+    "type": "object"
+}

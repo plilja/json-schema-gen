@@ -1,0 +1,77 @@
+{
+    "$defs": {
+        "Role": {
+            "enum": [
+                "ADMIN",
+                "USER",
+                "MODERATOR"
+            ],
+            "title": "Role",
+            "type": "string"
+        }
+    },
+    "properties": {
+        "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+        },
+        "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+        },
+        "age": {
+            "anyOf": [
+                {
+                    "maximum": 150,
+                    "minimum": 0,
+                    "type": "integer"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Age"
+        },
+        "role": {
+            "$ref": "#/$defs/Role"
+        },
+        "phone": {
+            "anyOf": [
+                {
+                    "pattern": "\\+?[1-9]\\d{1,14}",
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Phone"
+        },
+        "password": {
+            "anyOf": [
+                {
+                    "maxLength": 128,
+                    "minLength": 8,
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Password"
+        }
+    },
+    "required": [
+        "name",
+        "email",
+        "role"
+    ],
+    "title": "UserRegistrationRequest",
+    "type": "object"
+}

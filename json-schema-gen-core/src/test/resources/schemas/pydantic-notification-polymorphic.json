@@ -1,0 +1,189 @@
+{
+    "$defs": {
+        "EmailNotification": {
+            "properties": {
+                "id": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Id"
+                },
+                "sent_at": {
+                    "anyOf": [
+                        {
+                            "format": "date-time",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Sent At"
+                },
+                "type": {
+                    "const": "email",
+                    "default": "email",
+                    "title": "Type",
+                    "type": "string"
+                },
+                "recipient": {
+                    "format": "email",
+                    "title": "Recipient",
+                    "type": "string"
+                },
+                "subject": {
+                    "minLength": 1,
+                    "title": "Subject",
+                    "type": "string"
+                },
+                "body": {
+                    "minLength": 1,
+                    "title": "Body",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "recipient",
+                "subject",
+                "body"
+            ],
+            "title": "EmailNotification",
+            "type": "object"
+        },
+        "PushNotification": {
+            "properties": {
+                "id": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Id"
+                },
+                "sent_at": {
+                    "anyOf": [
+                        {
+                            "format": "date-time",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Sent At"
+                },
+                "type": {
+                    "const": "push",
+                    "default": "push",
+                    "title": "Type",
+                    "type": "string"
+                },
+                "title": {
+                    "minLength": 1,
+                    "title": "Title",
+                    "type": "string"
+                },
+                "body": {
+                    "minLength": 1,
+                    "title": "Body",
+                    "type": "string"
+                },
+                "device_token": {
+                    "minLength": 1,
+                    "title": "Device Token",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "title",
+                "body",
+                "device_token"
+            ],
+            "title": "PushNotification",
+            "type": "object"
+        },
+        "SmsNotification": {
+            "properties": {
+                "id": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Id"
+                },
+                "sent_at": {
+                    "anyOf": [
+                        {
+                            "format": "date-time",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Sent At"
+                },
+                "type": {
+                    "const": "sms",
+                    "default": "sms",
+                    "title": "Type",
+                    "type": "string"
+                },
+                "phone_number": {
+                    "minLength": 1,
+                    "pattern": "\\+?[1-9]\\d{1,14}",
+                    "title": "Phone Number",
+                    "type": "string"
+                },
+                "message": {
+                    "minLength": 1,
+                    "title": "Message",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "phone_number",
+                "message"
+            ],
+            "title": "SmsNotification",
+            "type": "object"
+        }
+    },
+    "discriminator": {
+        "mapping": {
+            "email": "#/$defs/EmailNotification",
+            "push": "#/$defs/PushNotification",
+            "sms": "#/$defs/SmsNotification"
+        },
+        "propertyName": "type"
+    },
+    "oneOf": [
+        {
+            "$ref": "#/$defs/EmailNotification"
+        },
+        {
+            "$ref": "#/$defs/SmsNotification"
+        },
+        {
+            "$ref": "#/$defs/PushNotification"
+        }
+    ]
+}

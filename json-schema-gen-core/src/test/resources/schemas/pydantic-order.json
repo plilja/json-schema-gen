@@ -1,0 +1,163 @@
+{
+    "$defs": {
+        "Address": {
+            "properties": {
+                "street": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "title": "Street",
+                    "type": "string"
+                },
+                "city": {
+                    "maxLength": 100,
+                    "minLength": 0,
+                    "title": "City",
+                    "type": "string"
+                },
+                "state": {
+                    "anyOf": [
+                        {
+                            "maxLength": 100,
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "State"
+                },
+                "zip_code": {
+                    "minLength": 1,
+                    "pattern": "\\d{5}(-\\d{4})?",
+                    "title": "Zip Code",
+                    "type": "string"
+                },
+                "country": {
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "street",
+                "city",
+                "zip_code",
+                "country"
+            ],
+            "title": "Address",
+            "type": "object"
+        },
+        "OrderItem": {
+            "properties": {
+                "product_name": {
+                    "minLength": 1,
+                    "title": "Product Name",
+                    "type": "string"
+                },
+                "quantity": {
+                    "minimum": 1,
+                    "title": "Quantity",
+                    "type": "integer"
+                },
+                "unit_price": {
+                    "minimum": 0.01,
+                    "title": "Unit Price",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "product_name",
+                "quantity",
+                "unit_price"
+            ],
+            "title": "OrderItem",
+            "type": "object"
+        },
+        "OrderStatus": {
+            "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "SHIPPED",
+                "DELIVERED",
+                "CANCELLED"
+            ],
+            "title": "OrderStatus",
+            "type": "string"
+        }
+    },
+    "properties": {
+        "id": {
+            "anyOf": [
+                {
+                    "type": "integer"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Id"
+        },
+        "status": {
+            "$ref": "#/$defs/OrderStatus"
+        },
+        "items": {
+            "items": {
+                "$ref": "#/$defs/OrderItem"
+            },
+            "maxItems": 100,
+            "minItems": 0,
+            "title": "Items",
+            "type": "array"
+        },
+        "shipping_address": {
+            "$ref": "#/$defs/Address"
+        },
+        "billing_address": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Address"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null
+        },
+        "created_at": {
+            "anyOf": [
+                {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Created At"
+        },
+        "updated_at": {
+            "anyOf": [
+                {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Updated At"
+        }
+    },
+    "required": [
+        "status",
+        "items",
+        "shipping_address"
+    ],
+    "title": "Order",
+    "type": "object"
+}
