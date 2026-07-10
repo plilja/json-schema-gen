@@ -1,0 +1,6 @@
+{
+  "type": "integer",
+  "minimum": 4.5,
+  "maximum": 30,
+  "multipleOf": 1.5
+}

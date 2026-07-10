@@ -6,6 +6,7 @@ import static se.plilja.jsonschemagen.internal.generator.GenerationResult.skip;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import se.plilja.jsonschemagen.internal.model.NumericSchema;
+import se.plilja.jsonschemagen.internal.util.MathUtil;
 
 /**
  * Generator for {@code "type": "integer"} and {@code "type": "number"}
@@ -148,8 +149,22 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         return schema.getMultipleOf() != null;
     }
 
+    /**
+     * Returns the effective grid step for integer schemas with a fractional
+     * {@code multipleOf} — the smallest value that is both a multiple of the
+     * constraint and an integer.
+     */
+    private BigDecimal effectiveMultipleOf() {
+        var m = schema.getMultipleOf();
+        if (schema.isInteger()) {
+            // Widen to the nearest integer-valued multiple (e.g. 1.5 → 3)
+            return MathUtil.lcmNullable(m, BigDecimal.ONE);
+        }
+        return m;
+    }
+
     private BigDecimal step() {
-        return hasMultipleOf() ? schema.getMultipleOf() : BigDecimal.ONE;
+        return hasMultipleOf() ? effectiveMultipleOf() : BigDecimal.ONE;
     }
 
     /**
@@ -160,12 +175,11 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
     private BigDecimal snapUp(BigDecimal value) {
         if (!hasMultipleOf()) {
             if (schema.isInteger()) {
-                // Round up to nearest integer
                 return value.setScale(0, RoundingMode.CEILING);
             }
             return value;
         }
-        var m = schema.getMultipleOf();
+        var m = effectiveMultipleOf();
         var divided = value.divide(m, 0, RoundingMode.CEILING);
         return divided.multiply(m);
     }
@@ -178,12 +192,11 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
     private BigDecimal snapDown(BigDecimal value) {
         if (!hasMultipleOf()) {
             if (schema.isInteger()) {
-                // Round down to nearest integer
                 return value.setScale(0, RoundingMode.FLOOR);
             }
             return value;
         }
-        var m = schema.getMultipleOf();
+        var m = effectiveMultipleOf();
         var divided = value.divide(m, 0, RoundingMode.FLOOR);
         return divided.multiply(m);
     }
@@ -211,7 +224,7 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
                 return BigDecimal.valueOf(context.random().nextDouble(lowestMultiple.doubleValue(), highestMultiple.doubleValue()));
             }
         }
-        var m = schema.getMultipleOf();
+        var m = effectiveMultipleOf();
         var lowestIndex = lowestMultiple.divide(m, 0, RoundingMode.UNNECESSARY);
         var highestIndex = highestMultiple.divide(m, 0, RoundingMode.UNNECESSARY);
         long randomIndex = context.random().nextLong(lowestIndex.longValueExact(), highestIndex.longValueExact() + 1);

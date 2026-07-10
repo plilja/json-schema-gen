@@ -3,6 +3,7 @@ package se.plilja.jsonschemagen.internal.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
 import java.util.Random;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -184,5 +185,29 @@ class MathUtilTest {
     void lcmNullable(Long a, Long b, Long expected) {
         // when / then
         assertThat(MathUtil.lcmNullable(a, b)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(nullValues = "null", value = {
+            "3, 5, 15",
+            "1.5, 1, 3",
+            "0.5, 1, 1",
+            "2.5, 1, 5",
+            "0.5, 0.3, 1.5",
+            "null, 7, 7",
+            "7, null, 7",
+    })
+    void lcmNullableBigDecimal(BigDecimal a, BigDecimal b, BigDecimal expected) {
+        // when
+        var result = MathUtil.lcmNullable(a, b);
+
+        // then
+        assertThat(result).isEqualByComparingTo(expected);
+    }
+
+    @Test
+    void lcmNullableBigDecimalBothNullReturnsNull() {
+        // when / then
+        assertThat(MathUtil.lcmNullable(null, (BigDecimal) null)).isNull();
     }
 }

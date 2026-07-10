@@ -271,6 +271,65 @@ class NumericGeneratorTest {
         }
 
         @Test
+        void fractionalMultipleOfProducesIntegerMultiples() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer")
+                            .minimum(new BigDecimal("4.5"))
+                            .multipleOf(new BigDecimal("1.5"))
+                            .build());
+
+            // when
+            var values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then — lcm(1.5, 1) = 3, so valid values ≥ 4.5 are 6, 9, 12, …
+            assertThat(values).allMatch(v -> v instanceof Long);
+            assertThat(values).allMatch(v -> v.longValue() >= 6 && v.longValue() % 3 == 0);
+            assertThat(values).contains(6L, 9L);
+        }
+
+        @Test
+        void fractionalMultipleOfHalfProducesEveryInteger() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer")
+                            .minimum(BigDecimal.valueOf(0))
+                            .maximum(BigDecimal.valueOf(5))
+                            .multipleOf(new BigDecimal("0.5"))
+                            .build());
+
+            // when
+            var values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then — lcm(0.5, 1) = 1, so every integer in [0, 5] is valid
+            assertThat(values).allMatch(v -> v instanceof Long);
+            assertThat(values).allMatch(v -> v.longValue() >= 0 && v.longValue() <= 5);
+            assertThat(values).contains(0L, 1L, 2L, 3L, 4L, 5L);
+        }
+
+        @Test
+        void fractionalMultipleOfTwoPointFiveProducesMultiplesOfFive() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer")
+                            .minimum(BigDecimal.valueOf(0))
+                            .maximum(BigDecimal.valueOf(20))
+                            .multipleOf(new BigDecimal("2.5"))
+                            .build());
+
+            // when
+            var values = LongStream.range(0, 100)
+                    .mapToObj(i -> generator.generate())
+                    .toList();
+
+            // then — lcm(2.5, 1) = 5, so valid values are 0, 5, 10, 15, 20
+            assertThat(values).allMatch(v -> v instanceof Long);
+            assertThat(values).allMatch(v -> v.longValue() >= 0 && v.longValue() <= 20 && v.longValue() % 5 == 0);
+            assertThat(values).contains(0L, 5L, 10L, 15L, 20L);
+        }
+
+        @Test
         void randomPhaseCoversEntireMultipleOfRange() {
             // The deterministic phases (MIN, MAX, NEAR_*) emit each boundary multiple exactly
             // once. High counts (>50 in 1000 iterations) for both 0 and 20 prove the RANDOM
