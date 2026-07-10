@@ -106,7 +106,15 @@ public final class SchemaParser {
                     branch.set("type", typeElement);
                     oneOfArray.add(branch);
                 }
+                var definitions = objectNode.get("definitions");
+                var defs = objectNode.get("$defs");
                 objectNode.removeAll();
+                if (definitions != null) {
+                    objectNode.set("definitions", definitions);
+                }
+                if (defs != null) {
+                    objectNode.set("$defs", defs);
+                }
                 objectNode.set("oneOf", oneOfArray);
             }
             for (var entry : objectNode.properties()) {
