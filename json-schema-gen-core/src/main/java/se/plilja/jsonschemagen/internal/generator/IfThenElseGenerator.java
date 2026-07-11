@@ -38,24 +38,28 @@ final class IfThenElseGenerator extends PhaseGenerator<IfThenElseGenerator.Gener
                 .ifSchema(null)
                 .thenSchema(null)
                 .elseSchema(null)
+                .additionalConditionals(null)
                 .build();
+        var conditionals = parent.getConditionals();
 
-        this.ifAndThenAndParent = composeIfAndThen(base, parent);
-        this.elseAndParent = composeElse(base, parent);
+        this.ifAndThenAndParent = composeIfAndThen(base, conditionals);
+        this.elseAndParent = composeElse(base, conditionals);
     }
 
     /**
-     * Composes the branch honoured when {@code if} matches: the base schema
-     * merged with {@code if}, and with {@code then} when it is present.
-     * Returns {@code null} when the merge is unsatisfiable, in which case
-     * the then branch is skipped in favour of else.
+     * Composes the branch honoured when every {@code if} matches: the base
+     * schema merged with each conditional's {@code if} and (when present)
+     * {@code then}. Returns {@code null} when the merge is unsatisfiable, in
+     * which case the then branch is skipped in favour of else.
      */
-    private static Schema composeIfAndThen(Schema base, Schema parent) {
+    private static Schema composeIfAndThen(Schema base, List<Schema.Conditional> conditionals) {
         var branches = new ArrayList<Schema>();
         branches.add(base);
-        branches.add(parent.getIfSchema());
-        if (parent.getThenSchema() != null) {
-            branches.add(parent.getThenSchema());
+        for (var conditional : conditionals) {
+            branches.add(conditional.ifSchema());
+            if (conditional.thenSchema() != null) {
+                branches.add(conditional.thenSchema());
+            }
         }
         try {
             return SchemaMerger.merge(branches);
@@ -68,16 +72,24 @@ final class IfThenElseGenerator extends PhaseGenerator<IfThenElseGenerator.Gener
 
     /**
      * Composes the branch honoured when {@code if} fails: the base schema
-     * merged with {@code else}, or the base alone when {@code else} is
-     * absent. The additional requirement that the value fail {@code if} is
-     * not encoded here — it is enforced by validating each candidate.
+     * merged with each conditional's {@code else}, or the base alone when no
+     * conditional declares one. The additional requirement that the value
+     * fail {@code if} is not encoded here — it is enforced by validating
+     * each candidate.
      */
-    private static Schema composeElse(Schema base, Schema parent) {
-        if (parent.getElseSchema() == null) {
+    private static Schema composeElse(Schema base, List<Schema.Conditional> conditionals) {
+        var branches = new ArrayList<Schema>();
+        branches.add(base);
+        for (var conditional : conditionals) {
+            if (conditional.elseSchema() != null) {
+                branches.add(conditional.elseSchema());
+            }
+        }
+        if (branches.size() == 1) {
             return base;
         }
         try {
-            return SchemaMerger.merge(List.of(base, parent.getElseSchema()));
+            return SchemaMerger.merge(branches);
         } catch (UnsatisfiableSchemaException unsatisfiable) {
             // Branch incompatible with the parent -- drop it (null) so the
             // other branch can still generate. See generatePhase.

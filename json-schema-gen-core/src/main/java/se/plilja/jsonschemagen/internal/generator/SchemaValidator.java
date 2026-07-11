@@ -81,9 +81,9 @@ final class SchemaValidator {
                 }
             }
         }
-        if (schema.getIfSchema() != null) {
-            var branch = satisfies(value, schema.getIfSchema(), refDepth)
-                    ? schema.getThenSchema() : schema.getElseSchema();
+        for (var conditional : schema.getConditionals()) {
+            var branch = satisfies(value, conditional.ifSchema(), refDepth)
+                    ? conditional.thenSchema() : conditional.elseSchema();
             if (branch != null && !satisfies(value, branch, refDepth)) {
                 return false;
             }

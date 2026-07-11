@@ -1,0 +1,14 @@
+{
+    "type": "object",
+    "required": ["role"],
+    "properties": {
+        "role": {"enum": ["admin", "user"]}
+    },
+    "allOf": [
+        {"properties": {"id": {"type": "integer", "minimum": 1}}, "required": ["id"]},
+        {
+            "if": {"properties": {"role": {"const": "admin"}}},
+            "then": {"properties": {"scopes": {"type": "array", "items": {"type": "string"}}}, "required": ["scopes"]}
+        }
+    ]
+}

@@ -1026,9 +1026,8 @@ class SchemaMergerTest {
             var merged = SchemaMerger.merge(List.of(a, b));
 
             // then
-            assertThat(merged.getIfSchema()).isEqualTo(a.getIfSchema());
-            assertThat(merged.getThenSchema()).isEqualTo(a.getThenSchema());
-            assertThat(merged.getElseSchema()).isEqualTo(a.getElseSchema());
+            assertThat(merged.getConditionals()).containsExactly(
+                    new Schema.Conditional(a.getIfSchema(), a.getThenSchema(), a.getElseSchema()));
         }
 
         @Test
@@ -1047,14 +1046,12 @@ class SchemaMergerTest {
             var merged = SchemaMerger.merge(List.of(a, b));
 
             // then
-            assertThat(merged.getIfSchema()).isEqualTo(b.getIfSchema());
-            assertThat(merged.getThenSchema()).isEqualTo(b.getThenSchema());
+            assertThat(merged.getConditionals()).containsExactly(
+                    new Schema.Conditional(b.getIfSchema(), b.getThenSchema(), null));
         }
 
         @Test
-        void bothSidesDeclaringConditionalThrows() {
-            // Two independent conditionals cannot be represented in a single
-            // if/then/else field -- deferred to issue #83.
+        void concatenatesConditionalsFromBothSides() {
             var a = readSchema("""
                     {
                         "if": {"properties": {"a": {"const": "x"}}},
@@ -1068,9 +1065,13 @@ class SchemaMergerTest {
                     }
                     """);
 
-            // when / then
-            assertThatThrownBy(() -> SchemaMerger.merge(List.of(a, b)))
-                    .isInstanceOf(UnsatisfiableSchemaException.class);
+            // when
+            var merged = SchemaMerger.merge(List.of(a, b));
+
+            // then
+            assertThat(merged.getConditionals()).containsExactly(
+                    new Schema.Conditional(a.getIfSchema(), a.getThenSchema(), null),
+                    new Schema.Conditional(b.getIfSchema(), b.getThenSchema(), null));
         }
     }
 

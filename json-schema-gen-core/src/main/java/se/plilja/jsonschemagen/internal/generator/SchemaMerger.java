@@ -112,22 +112,16 @@ final class SchemaMerger {
     }
 
     /**
-     * Carries an {@code if}/{@code then}/{@code else} conditional through the
-     * merge from whichever side declares one. A single conditional field
-     * cannot represent two independent conditionals, so merging two schemas
-     * that both declare one is rejected — see issue #83 for lifting this.
+     * Carries every {@code if}/{@code then}/{@code else} conditional from
+     * both sides through the merge. Each conditional must hold independently
+     * in the merged schema, the same as {@code allOf} branches.
      */
     private static void mergeConditional(Schema.SchemaBuilder<?, ?> builder, Schema a, Schema b) {
-        if (a.getIfSchema() != null && b.getIfSchema() != null) {
-            throw new UnsatisfiableSchemaException(
-                    "Cannot merge two schemas that each declare if/then/else");
-        }
-        var conditional = a.getIfSchema() != null ? a : b;
-        if (conditional.getIfSchema() != null) {
-            builder.ifSchema(conditional.getIfSchema())
-                    .thenSchema(conditional.getThenSchema())
-                    .elseSchema(conditional.getElseSchema());
-        }
+        var conditionals = concat(a.getConditionals(), b.getConditionals());
+        builder.ifSchema(null)
+                .thenSchema(null)
+                .elseSchema(null)
+                .additionalConditionals(conditionals.isEmpty() ? null : conditionals);
     }
 
     /**

@@ -1,0 +1,19 @@
+{
+    "type": "object",
+    "required": ["role", "status"],
+    "properties": {
+        "role": {"enum": ["admin", "user"]},
+        "status": {"enum": ["active", "inactive"]}
+    },
+    "allOf": [
+        {
+            "if": {"properties": {"role": {"const": "admin"}}},
+            "then": {"properties": {"scopes": {"type": "array"}}, "required": ["scopes"]}
+        },
+        {
+            "if": {"properties": {"status": {"const": "active"}}},
+            "then": {"properties": {"lastLogin": {"type": "string"}}, "required": ["lastLogin"]},
+            "else": {"properties": {"deactivatedAt": {"type": "string"}}, "required": ["deactivatedAt"]}
+        }
+    ]
+}

@@ -1,11 +1,13 @@
 package se.plilja.jsonschemagen.internal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -68,6 +70,15 @@ public abstract sealed class Schema
     @JsonDeserialize(using = SchemaDeserializer.class)
     private Schema elseSchema;
 
+    /**
+     * Conditionals accumulated from merging with other schemas that each
+     * declared their own {@code if}/{@code then}/{@code else}; not a JSON
+     * Schema keyword, so never populated by parsing. See {@link #getConditionals()}.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    private List<Conditional> additionalConditionals;
+
     @JsonSetter("oneOf")
     @JsonDeserialize(contentUsing = SchemaDeserializer.class)
     private void setOneOf(List<Schema> oneOf) {
@@ -81,4 +92,27 @@ public abstract sealed class Schema
     }
 
     public abstract SchemaBuilder<?, ?> toBuilder();
+
+    /**
+     * Every {@code if}/{@code then}/{@code else} conditional this schema
+     * enforces: its own (when declared directly), plus any accumulated by
+     * merging with other schemas that each declared one. All must hold
+     * independently, the same as {@code allOf} branches.
+     */
+    public List<Conditional> getConditionals() {
+        var result = new ArrayList<Conditional>();
+        if (ifSchema != null) {
+            result.add(new Conditional(ifSchema, thenSchema, elseSchema));
+        }
+        if (additionalConditionals != null) {
+            result.addAll(additionalConditionals);
+        }
+        return result;
+    }
+
+    /**
+     * One {@code if}/{@code then}/{@code else} triple pulled off a schema.
+     */
+    public record Conditional(Schema ifSchema, Schema thenSchema, Schema elseSchema) {
+    }
 }
