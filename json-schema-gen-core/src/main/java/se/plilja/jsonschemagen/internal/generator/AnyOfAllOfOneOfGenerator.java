@@ -108,8 +108,14 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
 
     /**
      * Merges the parent schema with its {@code allOf} branches, resolving
-     * {@code $ref}s and skipping self-referential ones. Returns the parent
-     * itself (minus combining keywords) when no {@code allOf} is present.
+     * {@code $ref}s — each resolved branch's own {@code allOf} is fully
+     * merged in as well — and skipping self-referential ones. Returns the
+     * parent itself (minus combining keywords) when no {@code allOf} is
+     * present.
+     *
+     * @throws UnsatisfiableSchemaException if a branch's {@code allOf} chain
+     *         does not bottom out within
+     *         {@link GeneratorContext#GLOBAL_REF_HARD_DEPTH} levels
      */
     private static Schema mergeParentWithAllOf(GeneratorContext context, Schema parent) {
         var baseTemp = parent.toBuilder()
@@ -133,7 +139,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
                     if (resolved == parent) {
                         continue;
                     }
-                    branches.add(resolved);
+                    branches.add(resolveAllOfChain(context, resolved));
                 } else {
                     branches.add(branch);
                 }
@@ -144,6 +150,34 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
             merged = baseTemp;
         }
         return merged;
+    }
+
+    /**
+     * Fully resolves {@code schema}'s own {@code allOf} chain, returning a
+     * schema with no unresolved {@code allOf} of its own.
+     *
+     * @throws UnsatisfiableSchemaException if the chain does not bottom out
+     *         within {@link GeneratorContext#GLOBAL_REF_HARD_DEPTH} levels
+     */
+    private static Schema resolveAllOfChain(GeneratorContext context, Schema schema) {
+        if (schema.getAllOf() == null) {
+            return schema;
+        }
+        if (context.getGlobalRefDepth() >= GeneratorContext.GLOBAL_REF_HARD_DEPTH) {
+            throw new UnsatisfiableSchemaException(
+                    "Recursive allOf $ref could not bottom out within " + GeneratorContext.GLOBAL_REF_HARD_DEPTH
+                            + " levels — schema appears to require infinite recursion");
+        }
+        // Without this, a branch's own unresolved allOf carries forward onto the merged
+        // schema, and mutually-recursive $refs (A's allOf -> B, B's allOf -> A) reconstruct
+        // a new AnyOfAllOfOneOfGenerator each time that merged schema is generated,
+        // recursing without bound.
+        context.incrementGlobalRefDepth();
+        try {
+            return mergeParentWithAllOf(context, schema);
+        } finally {
+            context.decrementGlobalRefDepth();
+        }
     }
 
     @Override

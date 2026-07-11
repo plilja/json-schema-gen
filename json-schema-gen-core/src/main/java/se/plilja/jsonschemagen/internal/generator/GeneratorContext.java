@@ -41,10 +41,11 @@ public final class GeneratorContext {
     static final int GLOBAL_REF_HARD_DEPTH = 4;
 
     /**
-     * Number of {@code $ref} expansions currently on the call stack across all
-     * {@link RefGenerator} instances. Drives minimal-mode: when this reaches
-     * the soft depth limit, downstream generators collapse to their smallest
-     * valid form so recursion terminates.
+     * Number of {@code $ref} expansions currently on the call stack — across
+     * both {@link RefGenerator} and {@code allOf} branch resolution, which
+     * carries the same unbounded-recursion risk. Drives minimal-mode: when
+     * this reaches the soft depth limit, downstream generators collapse to
+     * their smallest valid form so recursion terminates.
      */
     private int globalRefDepth;
 

@@ -403,6 +403,33 @@ class AnyOfAllOfOneOfGeneratorTest {
         }
 
         @Test
+        void mutuallyRecursiveAllOfRefsThrowCleanException() {
+            // when / then -- "A"'s allOf $refs "B", "B"'s allOf $refs back to "A";
+            // neither is the exact self-ref mergeParentWithAllOf already special-cases,
+            // so resolving one pulls in the other's still-unresolved allOf, forever.
+            assertThatThrownBy(() -> generatorFor("""
+                    {
+                        "definitions": {
+                            "A": {
+                                "type": "object",
+                                "properties": {"a": {"type": "string"}},
+                                "required": ["a"],
+                                "allOf": [{"$ref": "#/definitions/B"}]
+                            },
+                            "B": {
+                                "type": "object",
+                                "properties": {"b": {"type": "string"}},
+                                "required": ["b"],
+                                "allOf": [{"$ref": "#/definitions/A"}]
+                            }
+                        },
+                        "allOf": [{"$ref": "#/definitions/A"}]
+                    }
+                    """).generate())
+                    .isInstanceOf(UnsatisfiableSchemaException.class);
+        }
+
+        @Test
         void conflictingConstValuesThrows() {
             // when / then
             assertThatThrownBy(() -> generatorFor("""
