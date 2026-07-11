@@ -21,24 +21,25 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     }
 
     public R generate() {
-        if (context.isMinimal()) {
-            var result = generatePhase(minimalPhase());
-            if (result instanceof GenerationResult.Present<R> present) {
-                return present.value();
-            }
-            throw new IllegalStateException("Minimal phase must always produce a value");
-        }
+        // In minimal mode, start from minimalPhase() instead of the shared phase
+        // field, and don't persist advances to it — minimal mode may skip (e.g. a
+        // candidate failing post-generation validation), so it retries locally
+        // rather than requiring first-attempt success, and the shared cycling
+        // state belongs to the non-minimal cycle across separate generate() calls.
         UnsatisfiableSchemaException lastException = null;
+        var candidate = context.isMinimal() ? minimalPhase() : phase;
         for (int attempt = 0; attempt < RETRY_BUDGET; attempt++) {
             GenerationResult<R> result;
             try {
-                result = generatePhase(phase);
+                result = generatePhase(candidate);
             } catch (UnsatisfiableSchemaException e) {
                 lastException = e;
                 result = GenerationResult.skip();
             }
-            var prev = phase;
-            phase = advanceToNext(phase);
+            candidate = advanceToNext(candidate);
+            if (!context.isMinimal()) {
+                phase = candidate;
+            }
             if (result instanceof GenerationResult.Present<R> present) {
                 return present.value();
             }
@@ -52,8 +53,8 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     }
 
     /**
-     * Returns the phase that would generate the smallest possible result satisfying
-     * the constraints. Please note that this phase should not be skippable.
+     * Returns the phase tried first in minimal mode. May skip — unlike the
+     * normal phase cycle, it is not required to always produce a value.
      */
     protected abstract E minimalPhase();
 

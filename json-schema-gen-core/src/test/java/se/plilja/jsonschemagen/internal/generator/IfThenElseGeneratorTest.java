@@ -1,11 +1,13 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
@@ -152,6 +154,28 @@ class IfThenElseGeneratorTest {
 
         // then
         assertThat(values).allMatch(v -> validator.satisfies(v, document.getRoot()));
+    }
+
+    @Test
+    void minimalModeWithBothBranchesUnsatisfiableThrowsCleanException() {
+        // Both then+parent and else+parent conflict with the parent's own "x" constraint,
+        // so the schema is genuinely unsatisfiable regardless of mode.
+        var document = SchemaParser.parse("""
+                {
+                    "type": "object",
+                    "properties": {"x": {"const": 5}},
+                    "if": {"properties": {"x": {"const": 1}}},
+                    "then": {"properties": {"x": {"const": 2}}},
+                    "else": {"properties": {"x": {"const": 3}}}
+                }
+                """);
+        var context = new GeneratorContext(document, new Random(42));
+        context.incrementGlobalRefDepth();
+        context.incrementGlobalRefDepth();
+        var generator = new IfThenElseGenerator(context, document.getRoot());
+
+        // when / then -- minimal mode must not surface the internal IllegalStateException
+        assertThatThrownBy(generator::generate).isInstanceOf(UnsatisfiableSchemaException.class);
     }
 
     private static IfThenElseGenerator generatorFor(SchemaDocument document) {

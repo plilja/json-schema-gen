@@ -1058,6 +1058,35 @@ class AnyOfAllOfOneOfGeneratorTest {
         }
     }
 
+    @Nested
+    class MinimalMode {
+
+        @Test
+        void overMatchingCandidateRetriesUntilExactlyOneBranchMatches() {
+            var document = SchemaParser.parse("""
+                    {
+                        "oneOf": [
+                            {"type": "integer", "minimum": 0, "maximum": 100},
+                            {"type": "integer", "minimum": 0, "maximum": 1000}
+                        ]
+                    }
+                    """);
+            var context = new GeneratorContext(document, new Random(42));
+            context.incrementGlobalRefDepth();
+            context.incrementGlobalRefDepth();
+            var validator = new SchemaValidator(context);
+            var generator = new AnyOfAllOfOneOfGenerator(context, document.getRoot());
+
+            // when -- the first exhaustive candidate always over-matches (branch 0's range
+            // is a subset of branch 1's), and disambiguation only repairs object candidates,
+            // so the fix must retry through further phases instead of crashing
+            var value = generator.generate();
+
+            // then
+            assertThat(validator.satisfies(value, document.getRoot())).isTrue();
+        }
+    }
+
     private static AnyOfAllOfOneOfGenerator generatorFor(String json) {
         var document = SchemaParser.parse(json);
         return new AnyOfAllOfOneOfGenerator(
