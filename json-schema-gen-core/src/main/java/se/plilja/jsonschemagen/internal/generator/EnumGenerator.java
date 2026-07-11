@@ -57,8 +57,13 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
 
     @Override
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
+        // index can outgrow values.size() when this instance is shared (via
+        // GeneratorContext's identity cache) across more calls than it has values —
+        // e.g. minimal mode always retries from EXHAUSTIVE without ever advancing
+        // to RANDOM. Wrapping keeps it cycling through boundary values instead of
+        // throwing.
         var value = switch (phase) {
-            case EXHAUSTIVE -> values.get(index);
+            case EXHAUSTIVE -> values.get(index % values.size());
             case RANDOM -> values.get(context.random().nextInt(values.size()));
         };
         return result(value);

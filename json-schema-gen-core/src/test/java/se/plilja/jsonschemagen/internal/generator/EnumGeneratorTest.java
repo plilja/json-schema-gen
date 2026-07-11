@@ -1,6 +1,7 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
@@ -85,5 +86,24 @@ class EnumGeneratorTest {
         // when / then
         assertThatThrownBy(() -> new EnumGenerator(withSeed(42), root.getEnumValues(), root))
                 .isInstanceOf(UnsatisfiableSchemaException.class);
+    }
+
+    @Test
+    void sharedInstanceInMinimalModeDoesNotThrowWhenCalledMoreTimesThanValues() {
+        // A single EnumGenerator instance is shared (via GeneratorContext's identity
+        // cache) across every call site reaching the same $ref'd schema. In minimal
+        // mode, generate() always retries from minimalPhase() rather than persisting
+        // the shared phase field, so a heavily-referenced enum can be asked for more
+        // values than it has.
+        var values = List.<Object>of("red", "green");
+        var context = withSeed(42);
+        context.incrementGlobalRefDepth();
+        context.incrementGlobalRefDepth();
+        var generator = new EnumGenerator(context, values, enumSchema(values));
+
+        // when / then
+        for (int i = 0; i < 5; i++) {
+            assertThatCode(generator::generate).doesNotThrowAnyException();
+        }
     }
 }
