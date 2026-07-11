@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -477,6 +478,34 @@ class ArrayGeneratorTest {
 
         // when / then
         assertThatThrownBy(generator::generate).isInstanceOf(UnsatisfiableSchemaException.class);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void requiredPropertyMissingFromItemPropertiesIsGeneratedInEveryElement() {
+        var generator = arrayGenerator("""
+                {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {"type": "integer"}
+                        },
+                        "required": ["id", "label"]
+                    },
+                    "minItems": 2,
+                    "maxItems": 4
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(arr -> assertThat(arr).allSatisfy(
+                item -> assertThat((Map<String, Object>) item).containsKey("label")));
     }
 
     private static ArrayGenerator arrayGenerator(String json) {

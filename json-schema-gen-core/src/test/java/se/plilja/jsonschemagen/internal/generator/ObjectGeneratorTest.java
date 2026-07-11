@@ -736,6 +736,73 @@ class ObjectGeneratorTest {
         });
     }
 
+    @Test
+    void requiredPropertyMissingFromPropertiesIsGeneratedFromAdditionalProperties() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "test": {"type": "string"}
+                    },
+                    "required": ["test", "dropped"]
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).containsKey("dropped"));
+    }
+
+    @Test
+    void requiredPropertyMissingFromPropertiesIsGeneratedFromMatchingPatternProperties() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "test": {"type": "string"}
+                    },
+                    "patternProperties": {
+                        "^extra": {"type": "integer", "minimum": 10, "maximum": 20}
+                    },
+                    "required": ["test", "extraValue"]
+                }
+                """);
+
+        // when
+        var results = IntStream.range(0, 20)
+                .mapToObj(i -> generator.generate())
+                .toList();
+
+        // then
+        assertThat(results).allSatisfy(obj -> {
+            assertThat(obj).containsKey("extraValue");
+            assertThat((Long) obj.get("extraValue")).isBetween(10L, 20L);
+        });
+    }
+
+    @Test
+    void requiredPropertyMissingFromPropertiesWithAdditionalPropertiesFalseThrows() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "test": {"type": "string"}
+                    },
+                    "required": ["test", "dropped"],
+                    "additionalProperties": false
+                }
+                """);
+
+        // when / then
+        assertThatThrownBy(generator::generate)
+                .isInstanceOf(UnsatisfiableSchemaException.class)
+                .hasMessageContaining("dropped");
+    }
+
     private static ObjectGenerator objectGenerator(String json) {
         var document = SchemaParser.parse(json);
         return new ObjectGenerator(new GeneratorContext(document, new Random(42)), (ObjectSchema) document.getRoot());

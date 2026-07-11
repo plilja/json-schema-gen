@@ -137,10 +137,8 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
 
         var obj = new LinkedHashMap<String, Object>();
         for (var property : selected) {
-            var fieldSchema = effectiveSchema.getProperties().get(property);
-            if (fieldSchema != null) {
-                obj.put(property, context.generatorFor(withMatchingPatternSchemas(fieldSchema, property)).generate());
-            }
+            var fieldSchema = resolveFieldSchema(effectiveSchema, property);
+            obj.put(property, context.generatorFor(fieldSchema).generate());
         }
         // Synthesize additional properties to reach targetCount
         var synthesizeSchema = synthesizableSchema();
@@ -209,6 +207,39 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
+     * Resolves the schema used to generate {@code property}'s value, applying
+     * JSON Schema's {@code properties}/{@code patternProperties}/{@code additionalProperties}
+     * precedence. This lets a {@code required} property that has no entry in
+     * {@code properties} still be generated.
+     *
+     * @throws UnsatisfiableSchemaException if none of those sources apply,
+     *         i.e. {@code additionalProperties} is {@code false} and no
+     *         {@code patternProperties} regex matches {@code property}
+     */
+    private Schema resolveFieldSchema(ObjectSchema effectiveSchema, String property) {
+        var fieldSchema = effectiveSchema.getProperties().get(property);
+        if (fieldSchema != null) {
+            return withMatchingPatternSchemas(fieldSchema, property);
+        }
+        // No declared schema - try patternProperties before falling back
+        if (hasMatchingPatternProperty(property)) {
+            return withMatchingPatternSchemas(new UntypedSchema(), property);
+        }
+        // No pattern match either - additionalProperties is the last resort
+        var fallback = synthesizableSchema();
+        if (fallback == null) {
+            throw new UnsatisfiableSchemaException(
+                    "Property '" + property + "' is required but has no schema in properties or patternProperties, "
+                            + "and additionalProperties is false");
+        }
+        return fallback;
+    }
+
+    private boolean hasMatchingPatternProperty(String property) {
+        return compiledPatternProperties.keySet().stream().anyMatch(pattern -> pattern.matcher(property).find());
+    }
+
+    /**
      * Synthesizes properties by generating names from {@code patternProperties}
      * regexes, for use when {@code additionalProperties} is {@code false} but
      * patterns can still supply fresh names.
@@ -269,7 +300,8 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
      */
     private List<String> reverseTopologicalOrderDependentProperties() {
         var depRequired = schema.getDependentRequired();
-        var properties = new ArrayList<>(schema.getProperties().keySet());
+        var properties = new LinkedHashSet<>(schema.getProperties().keySet());
+        properties.addAll(schema.getRequired());
         return reversed(GraphUtil.topologicalSort(properties, depRequired));
     }
 
