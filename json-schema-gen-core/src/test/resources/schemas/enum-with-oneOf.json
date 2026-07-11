@@ -1,0 +1,8 @@
+{
+  "type": "integer",
+  "enum": [1, 10, 100, 1000, 10000],
+  "oneOf": [
+    { "maximum": 1000 },
+    { "minimum": 10 }
+  ]
+}

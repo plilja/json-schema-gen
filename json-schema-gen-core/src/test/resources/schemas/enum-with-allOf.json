@@ -1,0 +1,8 @@
+{
+  "type": "integer",
+  "enum": [1, 5, 10, 50, 100],
+  "allOf": [
+    { "minimum": 5 },
+    { "maximum": 50 }
+  ]
+}

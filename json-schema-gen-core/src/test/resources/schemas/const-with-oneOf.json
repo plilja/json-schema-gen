@@ -1,0 +1,8 @@
+{
+  "type": "integer",
+  "const": 5,
+  "oneOf": [
+    { "maximum": 10 },
+    { "minimum": 100 }
+  ]
+}

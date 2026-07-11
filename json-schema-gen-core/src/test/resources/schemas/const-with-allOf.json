@@ -1,0 +1,8 @@
+{
+  "type": "integer",
+  "const": 20,
+  "allOf": [
+    { "minimum": 10 },
+    { "maximum": 50 }
+  ]
+}

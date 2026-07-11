@@ -56,10 +56,10 @@ public final class JsonGenerator {
             return new RefGenerator(context, schema.getRef());
         }
         if (schema.getConstValue() != null) {
-            return new ConstGenerator(schema.getConstValue());
+            return new ConstGenerator(context, schema.getConstValue(), schema);
         }
         if (schema.getEnumValues() != null) {
-            return new EnumGenerator(context, schema.getEnumValues());
+            return new EnumGenerator(context, schema.getEnumValues(), schema);
         }
         if (schema.getIfSchema() != null) {
             return new IfThenElseGenerator(context, schema);

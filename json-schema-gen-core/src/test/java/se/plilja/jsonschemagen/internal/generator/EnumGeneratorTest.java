@@ -1,17 +1,27 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static se.plilja.jsonschemagen.internal.generator.TestContexts.withSeed;
 
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
+import se.plilja.jsonschemagen.internal.model.Schema;
+import se.plilja.jsonschemagen.internal.model.UntypedSchema;
+import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 class EnumGeneratorTest {
 
+    private static Schema enumSchema(List<Object> values) {
+        return UntypedSchema.builder().enumValues(values).build();
+    }
+
     @Test
     void exhaustsAllValuesInOrder() {
-        var generator = new EnumGenerator(withSeed(42),List.of("red", "green", "blue"));
+        var values = List.<Object>of("red", "green", "blue");
+        var generator = new EnumGenerator(withSeed(42), values, enumSchema(values));
 
         // when
         var first = generator.generate();
@@ -26,7 +36,8 @@ class EnumGeneratorTest {
 
     @Test
     void exhaustsMixedTypeValuesInOrder() {
-        var generator = new EnumGenerator(withSeed(42),Arrays.asList("admin", 1, true, null));
+        var values = Arrays.<Object>asList("admin", 1, true, null);
+        var generator = new EnumGenerator(withSeed(42), values, enumSchema(values));
 
         // when
         var first = generator.generate();
@@ -43,7 +54,8 @@ class EnumGeneratorTest {
 
     @Test
     void producesRandomValuesAfterExhausting() {
-        var generator = new EnumGenerator(withSeed(42),List.of("red", "green", "blue"));
+        var values = List.<Object>of("red", "green", "blue");
+        var generator = new EnumGenerator(withSeed(42), values, enumSchema(values));
         // exhaust all values
         generator.generate();
         generator.generate();
@@ -58,5 +70,20 @@ class EnumGeneratorTest {
         assertThat(fourth).isEqualTo("blue");
         assertThat(fifth).isEqualTo("red");
         assertThat(sixth).isEqualTo("red");
+    }
+
+    @Test
+    void throwsWhenNoEnumValueSatisfiesCombiningKeyword() {
+        var root = SchemaParser.parse("""
+                {
+                    "type": "integer",
+                    "enum": [10, 20],
+                    "allOf": [ { "minimum": 100 } ]
+                }
+                """).getRoot();
+
+        // when / then
+        assertThatThrownBy(() -> new EnumGenerator(withSeed(42), root.getEnumValues(), root))
+                .isInstanceOf(UnsatisfiableSchemaException.class);
     }
 }

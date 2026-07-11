@@ -1,0 +1,8 @@
+{
+  "type": "integer",
+  "enum": [1, 4, 7, 12, 15],
+  "anyOf": [
+    { "minimum": 10 },
+    { "multipleOf": 2 }
+  ]
+}

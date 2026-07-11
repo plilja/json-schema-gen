@@ -1,0 +1,7 @@
+{
+  "type": "integer",
+  "const": 15,
+  "if": { "minimum": 10 },
+  "then": { "multipleOf": 5 },
+  "else": { "maximum": 5 }
+}

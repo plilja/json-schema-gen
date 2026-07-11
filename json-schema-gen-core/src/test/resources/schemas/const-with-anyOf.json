@@ -1,0 +1,8 @@
+{
+  "type": "integer",
+  "const": 7,
+  "anyOf": [
+    { "minimum": 5 },
+    { "multipleOf": 2 }
+  ]
+}
