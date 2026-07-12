@@ -7,6 +7,7 @@ import com.networknt.schema.SpecVersion.VersionFlag;
 import com.networknt.schema.SpecVersionDetector;
 import com.networknt.schema.ValidationMessage;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -22,9 +23,17 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @Slf4j
 class IntegrationTest {
@@ -32,12 +41,31 @@ class IntegrationTest {
     private static final long DEFAULT_SEED = 42L;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    // Generous enough to avoid false positives at ITERATIONS while keeping a
+    // pathological schema from hanging the suite. A single generate() call or
+    // validation should complete in milliseconds; these bound the outliers.
+    private static final long GENERATION_TIMEOUT_SECONDS = 2;
+    private static final long VALIDATION_TIMEOUT_SECONDS = 2;
+
+    // Daemon threads so a runaway generation/validation we can't interrupt never
+    // blocks JVM exit. Shut down in @AfterAll to avoid leaking the pool.
+    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool(r -> {
+        var thread = new Thread(r);
+        thread.setDaemon(true);
+        return thread;
+    });
+
     private static final Map<VersionFlag, JsonSchemaFactory> FACTORIES = new EnumMap<>(VersionFlag.class);
 
     static {
         for (var flag : VersionFlag.values()) {
             FACTORIES.put(flag, JsonSchemaFactory.getInstance(flag));
         }
+    }
+
+    @AfterAll
+    static void shutdownExecutor() {
+        EXECUTOR.shutdownNow();
     }
 
     static List<Arguments> parameters() throws IOException, URISyntaxException {
@@ -55,17 +83,43 @@ class IntegrationTest {
                     try {
                         var name = p.getFileName().toString();
                         var content = Files.readString(p);
-                        var gen = JsonSchemaGenerator.of(p.toFile()).withSeed(seed);
-                        var args = new ArrayList<Arguments>(ITERATIONS);
-                        for (int i = 1; i <= ITERATIONS; i++) {
-                            args.add(Arguments.of(name, content, p, i, gen.generate()));
-                        }
-                        return args.stream();
+                        var rows = generateRows(name, content, p, seed);
+                        return rows.stream();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
                 })
                 .toList();
+    }
+
+    /**
+     * Produces the parameterized rows for one schema: one row per iteration on
+     * success, or a single failure row (attributed to the schema) if building the
+     * generator or any generation call throws or times out.
+     */
+    private static List<Arguments> generateRows(String name, String content, Path path, long seed) {
+        JsonSchemaGenerator gen;
+        try {
+            gen = callWithTimeout(() -> JsonSchemaGenerator.of(path.toFile()).withSeed(seed), GENERATION_TIMEOUT_SECONDS);
+        } catch (RuntimeException e) {
+            return List.of(failureRow(name, content, path, "schema build " + e.getMessage()));
+        }
+
+        var rows = new ArrayList<Arguments>(ITERATIONS);
+        for (int i = 1; i <= ITERATIONS; i++) {
+            String json;
+            try {
+                json = callWithTimeout(gen::generate, GENERATION_TIMEOUT_SECONDS);
+            } catch (RuntimeException e) {
+                return List.of(failureRow(name, content, path, "generation at invocation " + i + " " + e.getMessage()));
+            }
+            rows.add(Arguments.of(name, content, path, i, json, null));
+        }
+        return rows;
+    }
+
+    private static Arguments failureRow(String name, String content, Path path, String detail) {
+        return Arguments.of(name, content, path, 0, null, name + ": " + detail);
     }
 
     private static long resolveSeed() {
@@ -78,16 +132,43 @@ class IntegrationTest {
 
     @ParameterizedTest(name = "{0} invocation={3}")
     @MethodSource("parameters")
-    void generatesValidJson(String schemaName, String schemaContent, Path schemaPath, int invocation, String json) throws Exception {
+    void generatesValidJson(String schemaName, String schemaContent, Path schemaPath, int invocation, String json, String generationError) throws Exception {
         // when
+        if (generationError != null) {
+            fail(generationError);
+        }
         var factory = schemaFactoryFor(schemaContent);
-        Set<ValidationMessage> errors = factory.getSchema(schemaPath.toUri())
-                .validate(json, InputFormat.JSON);
+        Set<ValidationMessage> errors = validateOrFail(factory, schemaPath, json, schemaName, invocation);
 
         // then
         assertThat(errors)
                 .as("%s invocation=%d", schemaName, invocation)
                 .isEmpty();
+    }
+
+    private static Set<ValidationMessage> validateOrFail(
+            JsonSchemaFactory factory, Path schemaPath, String json, String schemaName, int invocation) {
+        Callable<Set<ValidationMessage>> task = () -> factory.getSchema(schemaPath.toUri()).validate(json, InputFormat.JSON);
+        try {
+            return callWithTimeout(task, VALIDATION_TIMEOUT_SECONDS);
+        } catch (RuntimeException e) {
+            return fail("%s invocation=%d: validation %s".formatted(schemaName, invocation, e.getMessage()));
+        }
+    }
+
+    private static <T> T callWithTimeout(Callable<T> task, long timeoutSeconds) {
+        Future<T> future = EXECUTOR.submit(task);
+        try {
+            return future.get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw new RuntimeException("timed out after " + timeoutSeconds + "s");
+        } catch (ExecutionException e) {
+            throw new RuntimeException("failed: " + e.getCause());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
     }
 
     private static JsonSchemaFactory schemaFactoryFor(String schemaContent) throws Exception {
