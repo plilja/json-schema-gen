@@ -2,6 +2,7 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -776,6 +777,77 @@ class SchemaValidatorTest {
             // when
             var result = createValidator(document)
                     .satisfies(Map.of("status", "bad"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+    }
+
+    @Nested
+    class NotValidation {
+
+        private static final String INTEGER_NOT_ZERO = """
+                {"type": "integer", "not": {"const": 0}}
+                """;
+
+        @Test
+        void valueMatchingNotSubschemaFailsSchema() {
+            var document = SchemaParser.parse(INTEGER_NOT_ZERO);
+
+            // when
+            var result = createValidator(document).satisfies(0, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void valueNotMatchingNotSubschemaSatisfiesSchema() {
+            var document = SchemaParser.parse(INTEGER_NOT_ZERO);
+
+            // when
+            var result = createValidator(document).satisfies(1, document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        void numericValueMatchingNotConstFailsAcrossNumericTypes() {
+            // The value's Java numeric type (BigDecimal) differs from the const's
+            // (Integer); they are still the same JSON number and must be rejected.
+            var document = SchemaParser.parse("""
+                    {"type": "integer", "not": {"const": 1}}
+                    """);
+
+            // when
+            var result = createValidator(document).satisfies(BigDecimal.ONE, document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void bareNotRejectsForbiddenType() {
+            var document = SchemaParser.parse("""
+                    {"not": {"type": "string"}}
+                    """);
+
+            // when
+            var result = createValidator(document).satisfies("forbidden", document.getRoot());
+
+            // then
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void bareNotAcceptsOtherTypes() {
+            var document = SchemaParser.parse("""
+                    {"not": {"type": "string"}}
+                    """);
+
+            // when
+            var result = createValidator(document).satisfies(42, document.getRoot());
 
             // then
             assertThat(result).isTrue();

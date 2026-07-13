@@ -2,7 +2,6 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import static se.plilja.jsonschemagen.internal.generator.GenerationResult.result;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,15 +21,6 @@ import se.plilja.jsonschemagen.internal.util.RandomUtil;
  * selection.
  */
 final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGenerator.GenerationPhase, Object> {
-
-    /**
-     * Values likely to violate a typical property constraint, tried in
-     * order when disambiguating an over-matching {@code oneOf} candidate.
-     * Deliberately type-diverse: a probe only helps if it fails the target
-     * property's own schema.
-     */
-    private static final List<Object> DISAMBIGUATION_PROBES =
-            List.of(Boolean.TRUE, BigDecimal.ONE, "disambiguation-probe", List.of(), Map.of());
 
     private final Schema validationTarget;
     private final SchemaValidator validator;
@@ -271,12 +261,11 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
             return null;
         }
         for (var entry : objectBranch.getProperties().entrySet()) {
-            for (var probe : DISAMBIGUATION_PROBES) {
-                if (!validator.satisfies(probe, entry.getValue())) {
-                    var mutated = new LinkedHashMap<>(map);
-                    mutated.put(entry.getKey(), probe);
-                    return mutated;
-                }
+            var probe = Probes.firstMatching(candidate -> !validator.satisfies(candidate, entry.getValue()));
+            if (probe != Probes.NO_MATCH) {
+                var mutated = new LinkedHashMap<>(map);
+                mutated.put(entry.getKey(), probe);
+                return mutated;
             }
         }
         return null;

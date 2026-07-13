@@ -1,0 +1,4 @@
+{
+  "type": "integer",
+  "not": { "const": 0 }
+}

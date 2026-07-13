@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import se.plilja.jsonschemagen.internal.model.ArraySchema;
 import se.plilja.jsonschemagen.internal.model.BooleanSchema;
@@ -54,10 +55,11 @@ final class SchemaValidator {
             }
             return satisfies(value, context.resolveRef(schema.getRef()), refDepth + 1);
         }
-        if (schema.getConstValue() != null && !schema.getConstValue().equals(value)) {
+        if (schema.getConstValue() != null && !valuesEqual(schema.getConstValue(), value)) {
             return false;
         }
-        if (schema.getEnumValues() != null && !schema.getEnumValues().contains(value)) {
+        if (schema.getEnumValues() != null
+                && schema.getEnumValues().stream().noneMatch(allowed -> valuesEqual(allowed, value))) {
             return false;
         }
         if (schema.getAllOf() != null) {
@@ -87,6 +89,9 @@ final class SchemaValidator {
             if (branch != null && !satisfies(value, branch, refDepth)) {
                 return false;
             }
+        }
+        if (schema.getNotSchema() != null && satisfies(value, schema.getNotSchema(), refDepth)) {
+            return false;
         }
         return switch (schema) {
             case StringSchema s -> satisfiesString(value, s);
@@ -222,6 +227,19 @@ final class SchemaValidator {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Equality between JSON values as JSON Schema means it: two numbers are
+     * equal when numerically equal regardless of their Java representation
+     * (an {@code integer} 1 and a {@code number} 1.0 are equal), and all
+     * other values compare by {@link Object#equals}.
+     */
+    private static boolean valuesEqual(Object a, Object b) {
+        if (a instanceof Number an && b instanceof Number bn) {
+            return toBigDecimal(an).compareTo(toBigDecimal(bn)) == 0;
+        }
+        return Objects.equals(a, b);
     }
 
     private static BigDecimal toBigDecimal(Number n) {

@@ -1,8 +1,10 @@
 # json-schema-gen
 
-Runtime test data generator for Java. Takes a JSON Schema (Draft 7) and
-produces valid JSON. Designed for use in automated tests where hand-crafted
-fixtures are error-prone and incomplete.
+Runtime test data generator for Java. Takes a JSON Schema and produces
+valid JSON. Supports the most commonly used JSON Schema features across
+drafts, rather than targeting full compliance with any single draft.
+Designed for use in automated tests where hand-crafted fixtures are
+error-prone and incomplete.
 
 ## Build commands
 
