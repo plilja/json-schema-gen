@@ -21,13 +21,16 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     }
 
     public R generate() {
-        // In minimal mode, start from minimalPhase() instead of the shared phase
-        // field, and don't persist advances to it — minimal mode may skip (e.g. a
-        // candidate failing post-generation validation), so it retries locally
-        // rather than requiring first-attempt success, and the shared cycling
-        // state belongs to the non-minimal cycle across separate generate() calls.
+        // Minimal and random-only modes both start from a fixed phase instead of
+        // the shared phase field, and don't persist advances to it: they retry
+        // locally (a candidate may skip, e.g. on post-generation validation
+        // failure) rather than requiring first-attempt success, and the shared
+        // cycling state belongs to the exhaustive cycle across separate
+        // generate() calls. Minimal mode takes precedence so recursion still
+        // terminates even when random-only is configured.
         UnsatisfiableSchemaException lastException = null;
-        var candidate = context.isMinimal() ? minimalPhase() : phase;
+        boolean cycling = !context.isMinimal() && !context.isRandomOnly();
+        var candidate = startingPhase();
         for (int attempt = 0; attempt < RETRY_BUDGET; attempt++) {
             GenerationResult<R> result;
             try {
@@ -37,7 +40,7 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
                 result = GenerationResult.skip();
             }
             candidate = advanceToNext(candidate);
-            if (!context.isMinimal()) {
+            if (cycling) {
                 phase = candidate;
             }
             if (result instanceof GenerationResult.Present<R> present) {
@@ -46,6 +49,16 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
         }
         throw lastException != null ? lastException
                 : new UnsatisfiableSchemaException("Unable to generate a value satisfying the schema");
+    }
+
+    private E startingPhase() {
+        if (context.isMinimal()) {
+            return minimalPhase();
+        }
+        if (context.isRandomOnly()) {
+            return randomPhase();
+        }
+        return phase;
     }
 
     protected E advanceToNext(E current) {
@@ -57,6 +70,15 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
      * normal phase cycle, it is not required to always produce a value.
      */
     protected abstract E minimalPhase();
+
+    /**
+     * Returns the phase that emits a purely random value, used exclusively in
+     * random-only mode. By convention this is the last declared phase, which
+     * every generator uses as the terminal fallback of its boundary-value cycle.
+     */
+    protected E randomPhase() {
+        return EnumUtil.last(phase.getDeclaringClass());
+    }
 
     protected abstract GenerationResult<R> generatePhase(E phase);
 }

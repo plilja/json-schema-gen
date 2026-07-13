@@ -182,7 +182,7 @@ class RefGeneratorTest {
                 }
                 """.formatted(props);
         var document = SchemaParser.parse(schema);
-        var gen = new JsonGenerator(42L, document);
+        var gen = new JsonGenerator(42L, document, GeneratorConfig.defaults());
 
         // when
         // second call hits MAX_PROPERTIES phase, expanding all 50 refs

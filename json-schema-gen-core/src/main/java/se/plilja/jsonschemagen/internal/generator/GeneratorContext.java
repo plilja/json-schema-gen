@@ -21,24 +21,14 @@ public final class GeneratorContext {
 
     private final Random random;
 
+    private final GeneratorConfig config;
+
     /**
      * One {@link JsonGenerator} per {@link Schema} instance. Identity-keyed so
      * that all call sites reaching the same definition share phase state — the
      * boundary-value cycle advances globally instead of restarting per caller.
      */
     private final Map<Schema, JsonGenerator> generatorCache = new IdentityHashMap<>();
-
-    /**
-     * Flips the context into minimal mode so recursive generators collapse
-     * to required-only / empty containers.
-     */
-    static final int GLOBAL_REF_SOFT_DEPTH = 2;
-
-    /**
-     * Ceiling for required-field recursion that can never bottom out —
-     * beyond this depth the schema is unsatisfiable.
-     */
-    static final int GLOBAL_REF_HARD_DEPTH = 4;
 
     /**
      * Number of {@code $ref} expansions currently on the call stack — across
@@ -50,16 +40,37 @@ public final class GeneratorContext {
     private int globalRefDepth;
 
     GeneratorContext(SchemaDocument document, Random random) {
+        this(document, random, GeneratorConfig.defaults());
+    }
+
+    GeneratorContext(SchemaDocument document, Random random, GeneratorConfig config) {
         this.document = document;
         this.random = random;
+        this.config = config;
     }
 
     public Random random() {
         return random;
     }
 
+    boolean isRandomOnly() {
+        return config.randomOnly();
+    }
+
+    boolean generateAdditionalProperties() {
+        return config.generateAdditionalProperties();
+    }
+
+    /**
+     * Ceiling for required-field recursion that can never bottom out —
+     * beyond this depth the schema is unsatisfiable.
+     */
+    int refHardDepth() {
+        return config.refHardDepth();
+    }
+
     boolean isMinimal() {
-        return globalRefDepth >= GLOBAL_REF_SOFT_DEPTH;
+        return globalRefDepth >= config.refSoftDepth();
     }
 
     int getGlobalRefDepth() {

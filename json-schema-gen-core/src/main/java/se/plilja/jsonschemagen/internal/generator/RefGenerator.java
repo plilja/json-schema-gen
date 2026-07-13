@@ -23,9 +23,9 @@ final class RefGenerator implements Generator<Object> {
 
     @Override
     public Object generate() {
-        if (context.getGlobalRefDepth() >= GeneratorContext.GLOBAL_REF_HARD_DEPTH) {
+        if (context.getGlobalRefDepth() >= context.refHardDepth()) {
             throw new UnsatisfiableSchemaException(
-                    "Recursive $ref '" + ref + "' could not bottom out within " + GeneratorContext.GLOBAL_REF_HARD_DEPTH
+                    "Recursive $ref '" + ref + "' could not bottom out within " + context.refHardDepth()
                             + " levels — schema appears to require infinite recursion");
         }
         var schema = context.resolveRef(ref);

@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
+import se.plilja.jsonschemagen.internal.generator.GeneratorConfig;
 import se.plilja.jsonschemagen.internal.generator.JsonGenerator;
 import se.plilja.jsonschemagen.internal.model.SchemaDocument;
 import se.plilja.jsonschemagen.internal.parser.JsonSerializer;
@@ -21,8 +22,9 @@ import se.plilja.jsonschemagen.internal.parser.SchemaParser;
  *
  * <p>Instances are not thread-safe. Each thread should use its own generator.
  *
- * <p>{@link #withSeed} and {@link #withPin} return a new generator with the
- * updated configuration; the original is unchanged.
+ * <p>The {@code with*} methods return a new generator with the updated
+ * configuration; the original is unchanged. Each overrides any prior call to
+ * the same setter (last call wins).
  *
  * <pre>{@code
  * JsonSchemaGenerator gen = JsonSchemaGenerator.of(schema);
@@ -32,19 +34,46 @@ import se.plilja.jsonschemagen.internal.parser.SchemaParser;
  */
 public final class JsonSchemaGenerator {
 
+    private static final int DEFAULT_REF_SOFT_DEPTH = 2;
+    private static final int DEFAULT_REF_HARD_DEPTH = 4;
+    private static final int SHALLOW_REF_SOFT_DEPTH = 1;
+    private static final int SHALLOW_REF_HARD_DEPTH = 2;
+    private static final int DEEP_REF_SOFT_DEPTH = 4;
+    private static final int DEEP_REF_HARD_DEPTH = 8;
+
     private final String schema;
     private final Long seed;
     private final Map<String, String> pins;
+    private final GenerationMode mode;
+    private final boolean generateAdditionalProperties;
+    private final int refSoftDepth;
+    private final int refHardDepth;
     private final JsonGenerator generator;
     private final SchemaDocument document;
 
     private JsonSchemaGenerator(
-            String schema, SchemaDocument document, Long seed, Map<String, String> pins) {
+            String schema,
+            SchemaDocument document,
+            Long seed,
+            Map<String, String> pins,
+            GenerationMode mode,
+            boolean generateAdditionalProperties,
+            int refSoftDepth,
+            int refHardDepth) {
         this.schema = schema;
         this.document = document;
         this.seed = seed;
         this.pins = pins;
-        this.generator = new JsonGenerator(seed, document);
+        this.mode = mode;
+        this.generateAdditionalProperties = generateAdditionalProperties;
+        this.refSoftDepth = refSoftDepth;
+        this.refHardDepth = refHardDepth;
+        var config = new GeneratorConfig(
+                mode == GenerationMode.RANDOM_ONLY,
+                generateAdditionalProperties,
+                refSoftDepth,
+                refHardDepth);
+        this.generator = new JsonGenerator(seed, document, config);
     }
 
     /**
@@ -57,7 +86,9 @@ public final class JsonSchemaGenerator {
             throw new IllegalArgumentException("schema must not be null");
         }
         var document = SchemaParser.parse(schema);
-        return new JsonSchemaGenerator(schema, document, null, Collections.emptyMap());
+        return new JsonSchemaGenerator(
+                schema, document, null, Collections.emptyMap(),
+                GenerationMode.EXHAUSTIVE, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH);
     }
 
     /**
@@ -71,7 +102,9 @@ public final class JsonSchemaGenerator {
     public static JsonSchemaGenerator of(File schema) throws IOException {
         var schemaString = Files.readString(schema.toPath());
         var document = SchemaParser.parse(schema.toPath().toAbsolutePath());
-        return new JsonSchemaGenerator(schemaString, document, null, Collections.emptyMap());
+        return new JsonSchemaGenerator(
+                schemaString, document, null, Collections.emptyMap(),
+                GenerationMode.EXHAUSTIVE, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH);
     }
 
     /**
@@ -92,7 +125,8 @@ public final class JsonSchemaGenerator {
      * @param seed value used to initialise the random source
      */
     public JsonSchemaGenerator withSeed(long seed) {
-        return new JsonSchemaGenerator(schema, document, seed, pins);
+        return new JsonSchemaGenerator(
+                schema, document, seed, pins, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
     }
 
     /**
@@ -121,7 +155,80 @@ public final class JsonSchemaGenerator {
         var merged = new LinkedHashMap<>(pins);
         merged.put(jsonPath, jsonValue);
         return new JsonSchemaGenerator(
-                schema, document, seed, Collections.unmodifiableMap(merged));
+                schema, document, seed, Collections.unmodifiableMap(merged),
+                mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+    }
+
+    /**
+     * Returns a new generator using the given generation mode. Overrides any
+     * mode set by a previous call. Defaults to {@link GenerationMode#EXHAUSTIVE}.
+     *
+     * @param mode the strategy for choosing values across successive
+     *     {@link #generate()} calls
+     */
+    public JsonSchemaGenerator withMode(GenerationMode mode) {
+        if (mode == null) {
+            throw new IllegalArgumentException("mode must not be null");
+        }
+        return new JsonSchemaGenerator(
+                schema, document, seed, pins, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+    }
+
+    /**
+     * Returns a new generator that adds random extra properties to generated
+     * objects wherever the schema permits them (i.e. {@code additionalProperties}
+     * is absent or {@code true}), to exercise consumers that do not expect
+     * unknown fields. Off by default.
+     */
+    public JsonSchemaGenerator withAdditionalProperties() {
+        return new JsonSchemaGenerator(
+                schema, document, seed, pins, mode, true, refSoftDepth, refHardDepth);
+    }
+
+    /**
+     * Returns a new generator that expands {@code $ref} chains shallowly,
+     * favouring compact output over deeply nested structure. Overrides any
+     * recursion limits set by a previous call.
+     */
+    public JsonSchemaGenerator withRecursionLimitsShallow() {
+        return withRecursionLimits(SHALLOW_REF_SOFT_DEPTH, SHALLOW_REF_HARD_DEPTH);
+    }
+
+    /**
+     * Returns a new generator that expands {@code $ref} chains deeply, for
+     * schemas with legitimately deep nesting. Overrides any recursion limits
+     * set by a previous call.
+     */
+    public JsonSchemaGenerator withRecursionLimitsDeep() {
+        return withRecursionLimits(DEEP_REF_SOFT_DEPTH, DEEP_REF_HARD_DEPTH);
+    }
+
+    /**
+     * Returns a new generator using the given {@code $ref} expansion ceilings,
+     * overriding any recursion limits set by a previous call. At the soft
+     * ceiling recursive structures collapse to their smallest valid form so
+     * generation terminates; at the hard ceiling a {@code $ref} that still has
+     * not bottomed out is treated as unsatisfiable and generation fails.
+     *
+     * <p>When unset, the limits are soft {@value #DEFAULT_REF_SOFT_DEPTH} /
+     * hard {@value #DEFAULT_REF_HARD_DEPTH}.
+     *
+     * @param soft depth at which recursive structures collapse to their
+     *     smallest valid form; must be {@code >= 1} and {@code <= hard}
+     * @param hard depth beyond which a still-recursing {@code $ref} is
+     *     unsatisfiable
+     * @throws IllegalArgumentException if {@code soft < 1} or {@code soft > hard}
+     */
+    public JsonSchemaGenerator withRecursionLimits(int soft, int hard) {
+        if (soft < 1) {
+            throw new IllegalArgumentException("soft limit must be at least 1, was " + soft);
+        }
+        if (soft > hard) {
+            throw new IllegalArgumentException(
+                    "soft limit (" + soft + ") must not exceed hard limit (" + hard + ")");
+        }
+        return new JsonSchemaGenerator(
+                schema, document, seed, pins, mode, generateAdditionalProperties, soft, hard);
     }
 
     /**

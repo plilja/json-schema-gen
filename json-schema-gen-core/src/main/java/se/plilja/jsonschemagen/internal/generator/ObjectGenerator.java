@@ -28,6 +28,13 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
 
     private static final int PATTERN_NAME_RETRY_BUDGET = 20;
 
+    /**
+     * How many synthesized properties may appear above the schema's named set
+     * when the caller opts into additional properties and {@code maxProperties}
+     * imposes no lower ceiling.
+     */
+    private static final int ADDITIONAL_PROPERTIES_HEADROOM = 3;
+
     private final ObjectSchema schema;
     private final Map<Pattern, Schema> compiledPatternProperties;
     private final Map<String, RgxGen> patternGenerators;
@@ -72,6 +79,16 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         } else {
             // Only named properties are allowed
             effectiveMax = Math.min(numberOfNamedProperties, coalesce(schema.getMaxProperties(), Integer.MAX_VALUE));
+        }
+
+        // When the caller opts into additional properties and the schema places no
+        // constraint on extra fields, lift the ceiling so synthesized properties
+        // beyond the named set can appear (still bounded by maxProperties).
+        boolean addExtraProperties = context.generateAdditionalProperties()
+                && synthesizableSchema() instanceof UntypedSchema;
+        if (addExtraProperties) {
+            int hardMax = coalesce(schema.getMaxProperties(), Integer.MAX_VALUE);
+            effectiveMax = Math.min(hardMax, effectiveMax + ADDITIONAL_PROPERTIES_HEADROOM);
         }
 
         if (effectiveMax < requiredCount) {
