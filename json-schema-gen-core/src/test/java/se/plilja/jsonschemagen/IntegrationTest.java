@@ -11,6 +11,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import se.plilja.jsonschemagen.api.GenerationMode;
 import se.plilja.jsonschemagen.api.JsonSchemaGenerator;
 
 import java.io.IOException;
@@ -37,7 +38,7 @@ import static org.assertj.core.api.Assertions.fail;
 
 @Slf4j
 class IntegrationTest {
-    private static final int ITERATIONS = 250;
+    private static final int ITERATIONS = 200;
     private static final long DEFAULT_SEED = 42L;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -81,10 +82,13 @@ class IntegrationTest {
                 .filter(p -> !Files.isDirectory(p))
                 .flatMap(p -> {
                     try {
-                        var name = p.getFileName().toString();
                         var content = Files.readString(p);
-                        var rows = generateRows(name, content, p, seed);
-                        return rows.stream();
+                        // Both generation modes must always produce schema-valid JSON.
+                        return Stream.of(GenerationMode.values())
+                                .flatMap(mode -> {
+                                    var name = p.getFileName() + " [" + mode + "]";
+                                    return generateRows(name, content, p, seed, mode).stream();
+                                });
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -93,14 +97,14 @@ class IntegrationTest {
     }
 
     /**
-     * Produces the parameterized rows for one schema: one row per iteration on
-     * success, or a single failure row (attributed to the schema) if building the
-     * generator or any generation call throws or times out.
+     * Produces the parameterized rows for one schema in one generation mode: one
+     * row per iteration on success, or a single failure row (attributed to the
+     * schema) if building the generator or any generation call throws or times out.
      */
-    private static List<Arguments> generateRows(String name, String content, Path path, long seed) {
+    private static List<Arguments> generateRows(String name, String content, Path path, long seed, GenerationMode mode) {
         JsonSchemaGenerator gen;
         try {
-            gen = callWithTimeout(() -> JsonSchemaGenerator.of(path.toFile()).withSeed(seed), GENERATION_TIMEOUT_SECONDS);
+            gen = callWithTimeout(() -> JsonSchemaGenerator.of(path.toFile()).withSeed(seed).withMode(mode), GENERATION_TIMEOUT_SECONDS);
         } catch (RuntimeException e) {
             return List.of(failureRow(name, content, path, "schema build " + e.getMessage()));
         }

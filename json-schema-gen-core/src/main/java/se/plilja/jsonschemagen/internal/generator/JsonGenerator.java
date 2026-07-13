@@ -38,9 +38,9 @@ public final class JsonGenerator {
 
     private final Generator<?> delegate;
 
-    public JsonGenerator(Long seed, SchemaDocument document) {
+    public JsonGenerator(Long seed, SchemaDocument document, GeneratorConfig config) {
         this(document.getRoot(),
-                new GeneratorContext(document, seed != null ? new Random(seed) : new Random()));
+                new GeneratorContext(document, seed != null ? new Random(seed) : new Random(), config));
     }
 
     JsonGenerator(Schema schema, GeneratorContext context) {

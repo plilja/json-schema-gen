@@ -3,6 +3,7 @@ package se.plilja.jsonschemagen.internal.generator;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
@@ -803,8 +804,101 @@ class ObjectGeneratorTest {
                 .hasMessageContaining("dropped");
     }
 
+    @Test
+    void additionalPropertiesOptionSynthesizesExtraFields() {
+        var generator = objectGeneratorWithAdditionalProperties("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "integer"}
+                    },
+                    "required": ["a"]
+                }
+                """);
+
+        // when
+        var results = generate(generator, 200);
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).containsKey("a"));
+        assertThat(results).anySatisfy(obj -> assertThat(obj).hasSizeGreaterThan(1));
+        // Never more than the one named property plus the synthesis headroom.
+        assertThat(results).allSatisfy(obj -> assertThat(obj).hasSizeLessThanOrEqualTo(4));
+    }
+
+    @Test
+    void additionalPropertiesOptionRespectsAdditionalPropertiesFalse() {
+        var generator = objectGeneratorWithAdditionalProperties("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "integer"}
+                    },
+                    "required": ["a"],
+                    "additionalProperties": false
+                }
+                """);
+
+        // when
+        var results = generate(generator, 200);
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).containsOnlyKeys("a"));
+    }
+
+    @Test
+    void additionalPropertiesOptionRespectsMaxProperties() {
+        var generator = objectGeneratorWithAdditionalProperties("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "integer"}
+                    },
+                    "required": ["a"],
+                    "maxProperties": 2
+                }
+                """);
+
+        // when
+        var results = generate(generator, 200);
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).hasSizeLessThanOrEqualTo(2));
+        assertThat(results).anySatisfy(obj -> assertThat(obj).hasSize(2));
+    }
+
+    @Test
+    void withoutAdditionalPropertiesOptionNoExtraFieldsAreSynthesized() {
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "properties": {
+                        "a": {"type": "integer"}
+                    },
+                    "required": ["a"]
+                }
+                """);
+
+        // when
+        var results = generate(generator, 200);
+
+        // then
+        assertThat(results).allSatisfy(obj -> assertThat(obj).containsOnlyKeys("a"));
+    }
+
+    private static List<Map<String, Object>> generate(ObjectGenerator generator, int iterations) {
+        return IntStream.range(0, iterations).mapToObj(i -> generator.generate()).toList();
+    }
+
     private static ObjectGenerator objectGenerator(String json) {
         var document = SchemaParser.parse(json);
         return new ObjectGenerator(new GeneratorContext(document, new Random(42)), (ObjectSchema) document.getRoot());
+    }
+
+    private static ObjectGenerator objectGeneratorWithAdditionalProperties(String json) {
+        var document = SchemaParser.parse(json);
+        var config = new GeneratorConfig(false, true, 2, 4);
+        var context = new GeneratorContext(document, new Random(42), config);
+        return new ObjectGenerator(context, (ObjectSchema) document.getRoot());
     }
 }
