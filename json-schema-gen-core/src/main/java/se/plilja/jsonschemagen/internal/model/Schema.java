@@ -70,6 +70,10 @@ public abstract sealed class Schema
     @JsonDeserialize(using = SchemaDeserializer.class)
     private Schema elseSchema;
 
+    @JsonProperty("not")
+    @JsonDeserialize(using = SchemaDeserializer.class)
+    private Schema notSchema;
+
     /**
      * Conditionals accumulated from merging with other schemas that each
      * declared their own {@code if}/{@code then}/{@code else}; not a JSON

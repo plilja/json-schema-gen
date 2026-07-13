@@ -69,6 +69,9 @@ public final class JsonGenerator {
                 || schema.getAllOf() != null) {
             return new AnyOfAllOfOneOfGenerator(context, schema);
         }
+        if (schema.getNotSchema() != null) {
+            return new NotGenerator(context, schema);
+        }
         return switch (schema) {
             case StringSchema s -> buildStringDelegate(s, context);
             case NumericSchema s -> new NumericGenerator(context, s);

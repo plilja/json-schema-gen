@@ -17,7 +17,7 @@ import se.plilja.jsonschemagen.internal.parser.JsonSerializer;
 import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
 /**
- * Generates valid JSON values from a JSON Schema (Draft 7) document.
+ * Generates valid JSON values from a JSON Schema document.
  *
  * <p>Instances are not thread-safe. Each thread should use its own generator.
  *
@@ -50,7 +50,7 @@ public final class JsonSchemaGenerator {
     /**
      * Creates a generator for the given JSON Schema string.
      *
-     * @param schema a JSON Schema (Draft 7) document as a UTF-8 string
+     * @param schema a JSON Schema document as a UTF-8 string
      */
     public static JsonSchemaGenerator of(String schema) {
         if (schema == null) {
@@ -66,7 +66,7 @@ public final class JsonSchemaGenerator {
      * <p>External {@code $ref} values (relative file paths or HTTP URLs) are
      * resolved relative to the file's parent directory.
      *
-     * @param schema file containing a JSON Schema (Draft 7) document in UTF-8 encoding
+     * @param schema file containing a JSON Schema document in UTF-8 encoding
      */
     public static JsonSchemaGenerator of(File schema) throws IOException {
         var schemaString = Files.readString(schema.toPath());
@@ -78,7 +78,7 @@ public final class JsonSchemaGenerator {
      * Creates a generator by reading a JSON Schema from an input stream.
      * The stream is read to completion but not closed.
      *
-     * @param schema stream containing a JSON Schema (Draft 7) document in UTF-8 encoding
+     * @param schema stream containing a JSON Schema document in UTF-8 encoding
      */
     public static JsonSchemaGenerator of(InputStream schema) throws IOException {
         return of(new String(schema.readAllBytes(), StandardCharsets.UTF_8));
