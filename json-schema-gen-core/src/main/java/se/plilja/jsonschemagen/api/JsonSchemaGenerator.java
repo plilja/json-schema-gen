@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.GeneratorConfig;
 import se.plilja.jsonschemagen.internal.generator.JsonGenerator;
@@ -43,7 +45,7 @@ public final class JsonSchemaGenerator {
 
     private final String schema;
     private final Long seed;
-    private final Map<String, String> pins;
+    private final Map<String, ValueProducer> producers;
     private final GenerationMode mode;
     private final boolean generateAdditionalProperties;
     private final int refSoftDepth;
@@ -55,7 +57,7 @@ public final class JsonSchemaGenerator {
             String schema,
             SchemaDocument document,
             Long seed,
-            Map<String, String> pins,
+            Map<String, ValueProducer> producers,
             GenerationMode mode,
             boolean generateAdditionalProperties,
             int refSoftDepth,
@@ -63,7 +65,7 @@ public final class JsonSchemaGenerator {
         this.schema = schema;
         this.document = document;
         this.seed = seed;
-        this.pins = pins;
+        this.producers = producers;
         this.mode = mode;
         this.generateAdditionalProperties = generateAdditionalProperties;
         this.refSoftDepth = refSoftDepth;
@@ -72,8 +74,21 @@ public final class JsonSchemaGenerator {
                 mode == GenerationMode.RANDOM_ONLY,
                 generateAdditionalProperties,
                 refSoftDepth,
-                refHardDepth);
+                refHardDepth,
+                toValueSuppliers(producers));
         this.generator = new JsonGenerator(seed, document, config);
+    }
+
+    /**
+     * Adapts the public {@link ValueProducer} map into a {@link Supplier} map.
+     * The internal generator layer cannot depend on the {@code api} package,
+     * so it consumes each producer as a plain {@link Supplier}.
+     */
+    private static Map<String, Supplier<Object>> toValueSuppliers(Map<String, ValueProducer> producers) {
+        return producers.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue()::produce));
     }
 
     /**
@@ -126,34 +141,46 @@ public final class JsonSchemaGenerator {
      */
     public JsonSchemaGenerator withSeed(long seed) {
         return new JsonSchemaGenerator(
-                schema, document, seed, pins, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
     }
 
     /**
-     * Returns a new generator that fixes a specific field to a given value.
-     * The pinned value is written verbatim into the generated JSON; all other
-     * fields are still generated from the schema.
+     * Returns a new generator that overrides the value at {@code jsonPath}
+     * with whatever {@code producer} returns instead of generating it from the
+     * schema; a later producer at the same path replaces an earlier one.
      *
-     * <p>Multiple pins can be chained:
+     * <p>The producer fires once per {@link #generate()} call that visits the
+     * path, and not at all on calls that don't reach it. The overridden subtree
+     * is never generated — so a path whose schema is unsatisfiable or
+     * unsupported can still be populated — and the value is inserted as-is,
+     * without validation against the schema.
+     *
+     * <p>Paths match exactly (no wildcards): {@code $} root, {@code $.a.b} a
+     * nested field, {@code $.items[0]} an array element.
+     *
      * <pre>{@code
-     * JsonSchemaGenerator.of(schema)
-     *     .withPin("$.role", "\"admin\"")
-     *     .withPin("$.active", "true")
-     *     .generate();
+     * JsonSchemaGenerator gen = JsonSchemaGenerator.of(schema)
+     *         // a fixed value: pin a user id that exists in the test database
+     *         .withProducer("$.userId", () -> 42)
+     *         // a fresh value each generate() call, composed with a data faker
+     *         .withProducer("$.email", faker.internet()::emailAddress);
+     *
+     * String json = gen.generate();
      * }</pre>
      *
-     * @param jsonPath  JSON Path expression identifying the field to pin (e.g. {@code "$.role"})
-     * @param jsonValue a valid JSON literal to place at that path (e.g. {@code "\"admin\""})
+     * @param jsonPath path identifying the position to override
+     * @param producer supplies the value placed at that position
+     * @see ValueProducer
      */
-    public JsonSchemaGenerator withPin(String jsonPath, String jsonValue) {
+    public JsonSchemaGenerator withProducer(String jsonPath, ValueProducer producer) {
         if (jsonPath == null) {
             throw new IllegalArgumentException("jsonPath must not be null");
         }
-        if (jsonValue == null) {
-            throw new IllegalArgumentException("jsonValue must not be null");
+        if (producer == null) {
+            throw new IllegalArgumentException("producer must not be null");
         }
-        var merged = new LinkedHashMap<>(pins);
-        merged.put(jsonPath, jsonValue);
+        var merged = new LinkedHashMap<>(producers);
+        merged.put(jsonPath, producer);
         return new JsonSchemaGenerator(
                 schema, document, seed, Collections.unmodifiableMap(merged),
                 mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
@@ -171,7 +198,7 @@ public final class JsonSchemaGenerator {
             throw new IllegalArgumentException("mode must not be null");
         }
         return new JsonSchemaGenerator(
-                schema, document, seed, pins, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
     }
 
     /**
@@ -182,7 +209,7 @@ public final class JsonSchemaGenerator {
      */
     public JsonSchemaGenerator withAdditionalProperties() {
         return new JsonSchemaGenerator(
-                schema, document, seed, pins, mode, true, refSoftDepth, refHardDepth);
+                schema, document, seed, producers, mode, true, refSoftDepth, refHardDepth);
     }
 
     /**
@@ -228,7 +255,7 @@ public final class JsonSchemaGenerator {
                     "soft limit (" + soft + ") must not exceed hard limit (" + hard + ")");
         }
         return new JsonSchemaGenerator(
-                schema, document, seed, pins, mode, generateAdditionalProperties, soft, hard);
+                schema, document, seed, producers, mode, generateAdditionalProperties, soft, hard);
     }
 
     /**
@@ -237,9 +264,11 @@ public final class JsonSchemaGenerator {
      * @throws UnsatisfiableSchemaException if the schema is over-constrained
      *     or the generator's random search could not find a value satisfying the
      *     schema within its retry budget
+     * @throws IllegalArgumentException if a registered producer returns a value
+     *     that cannot be represented as JSON
      */
     public String generate() {
-        var generated = generator.generate();
+        var generated = generator.generateRoot();
         return JsonSerializer.serialize(generated);
     }
 

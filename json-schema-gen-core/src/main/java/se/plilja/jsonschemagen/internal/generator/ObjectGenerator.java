@@ -153,9 +153,11 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         }
 
         var obj = new LinkedHashMap<String, Object>();
+        var schemaForFields = effectiveSchema;
         for (var property : selected) {
-            var fieldSchema = resolveFieldSchema(effectiveSchema, property);
-            obj.put(property, context.generatorFor(fieldSchema).generate());
+            var segment = "." + property;
+            var value = JsonGenerator.generateForPath(context, segment, () -> resolveFieldSchema(schemaForFields, property));
+            obj.put(property, value);
         }
         // Synthesize additional properties to reach targetCount
         var synthesizeSchema = synthesizableSchema();

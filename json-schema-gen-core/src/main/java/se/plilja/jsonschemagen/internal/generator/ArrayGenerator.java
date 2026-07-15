@@ -101,13 +101,16 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
     }
 
     private Object generateElementAt(int index, int containsIndex) {
-        if (index == containsIndex) {
-            return context.generatorFor(schema.getContains()).generate();
-        } else if (index < prefixSchemas.size()) {
-            return context.generatorFor(prefixSchemas.get(index)).generate();
-        } else {
-            return context.generatorFor(itemSchema).generate();
-        }
+        var segment = "[" + index + "]";
+        return JsonGenerator.generateForPath(context, segment, () -> {
+            if (index == containsIndex) {
+                return schema.getContains();
+            } else if (index < prefixSchemas.size()) {
+                return prefixSchemas.get(index);
+            } else {
+                return itemSchema;
+            }
+        });
     }
 
     /**

@@ -7,22 +7,39 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.api.GenerationMode;
 import se.plilja.jsonschemagen.api.JsonSchemaGenerator;
+import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 
 class JsonSchemaGeneratorTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    // CR can we use """ blocks?
-    private static final String INT_SCHEMA = "{\"type\":\"integer\",\"minimum\":5,\"maximum\":100}";
-    private static final String OBJECT_SCHEMA =
-            "{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"integer\"}},\"required\":[\"a\"]}";
-    private static final String CLOSED_OBJECT_SCHEMA =
-            "{\"type\":\"object\",\"properties\":{\"a\":{\"type\":\"integer\"}},\"required\":[\"a\"],\"additionalProperties\":false}";
-    private static final String RECURSIVE_SCHEMA =
-            "{\"type\":\"object\",\"properties\":{\"child\":{\"$ref\":\"#\"},\"v\":{\"type\":\"integer\"}}}";
+    private static final String INT_SCHEMA = """
+            { "type": "integer", "minimum": 5, "maximum": 100 }""";
+    private static final String OBJECT_SCHEMA = """
+            {
+              "type": "object",
+              "properties": { "a": { "type": "integer" } },
+              "required": ["a"]
+            }""";
+    private static final String CLOSED_OBJECT_SCHEMA = """
+            {
+              "type": "object",
+              "properties": { "a": { "type": "integer" } },
+              "required": ["a"],
+              "additionalProperties": false
+            }""";
+    private static final String RECURSIVE_SCHEMA = """
+            {
+              "type": "object",
+              "properties": {
+                "child": { "$ref": "#" },
+                "v": { "type": "integer" }
+              }
+            }""";
 
     @Test
     void unconfiguredMatchesExplicitExhaustive() {
@@ -167,6 +184,189 @@ class JsonSchemaGeneratorTest {
             return MAPPER.readTree(json);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Nested
+    class Producers {
+
+        private static final String TWO_FIELD_SCHEMA = """
+                {
+                  "type": "object",
+                  "properties": { "role": { "type": "string" }, "n": { "type": "integer" } },
+                  "required": ["role", "n"]
+                }""";
+        private static final String NESTED_SCHEMA = """
+                {
+                  "type": "object",
+                  "properties": {
+                    "a": {
+                      "type": "object",
+                      "properties": { "b": { "type": "string" } },
+                      "required": ["b"]
+                    }
+                  },
+                  "required": ["a"]
+                }""";
+        private static final String ARRAY_SCHEMA = """
+                { "type": "array", "items": { "type": "integer" }, "minItems": 3 }""";
+
+        @Test
+        void producerReplacesFieldValue() {
+            // when
+            var gen = JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducer("$.role", () -> "admin");
+
+            // then
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("admin");
+        }
+
+        @Test
+        void producerInvokedOnEachGenerate() {
+            // when
+            var counter = new int[] {0};
+            var gen = JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducer("$.role", () -> "user-" + counter[0]++);
+
+            // then
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("user-0");
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("user-1");
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("user-2");
+        }
+
+        @Test
+        void producerReturningBeanSerializesAsObject() {
+            // when
+            var gen = JsonSchemaGenerator.of(NESTED_SCHEMA).withSeed(1L)
+                    .withProducer("$.a", () -> new Point(3, 4));
+
+            // then
+            var a = parse(gen.generate()).get("a");
+            assertThat(a.get("x").asInt()).isEqualTo(3);
+            assertThat(a.get("y").asInt()).isEqualTo(4);
+        }
+
+        @Test
+        void producerOnNestedPathOverridesOnlyThatField() {
+            // when
+            var gen = JsonSchemaGenerator.of(NESTED_SCHEMA).withSeed(1L)
+                    .withProducer("$.a.b", () -> "fixed");
+
+            // then
+            assertThat(parse(gen.generate()).get("a").get("b").asText()).isEqualTo("fixed");
+        }
+
+        @Test
+        void producerOnArrayElementOverridesThatIndex() {
+            // when
+            var gen = JsonSchemaGenerator.of(ARRAY_SCHEMA).withSeed(1L)
+                    .withProducer("$[0]", () -> 999);
+
+            // then
+            assertThat(parse(gen.generate()).get(0).asInt()).isEqualTo(999);
+        }
+
+        @Test
+        void producerAtRootReplacesWholeValue() {
+            // when
+            var gen = JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducer("$", () -> List.of("replaced"));
+
+            // then
+            var root = parse(gen.generate());
+            assertThat(root.isArray()).isTrue();
+            assertThat(root.get(0).asText()).isEqualTo("replaced");
+        }
+
+        @Test
+        void producerBypassesGenerationOfUnsatisfiableField() {
+            // given a schema whose required field can never be generated
+            var schema = """
+                    { "type": "object", "properties": { "x": false }, "required": ["x"] }""";
+
+            // then generation fails without a producer
+            assertThatThrownBy(() -> JsonSchemaGenerator.of(schema).withSeed(1L).generate())
+                    .isInstanceOf(UnsatisfiableSchemaException.class);
+
+            // when a producer supplies the value, the subtree is never generated
+            var gen = JsonSchemaGenerator.of(schema).withSeed(1L)
+                    .withProducer("$.x", () -> "supplied");
+
+            // then
+            assertThat(parse(gen.generate()).get("x").asText()).isEqualTo("supplied");
+        }
+
+        @Test
+        void producerBypassesRequiredFieldWithNoSchema() {
+            // given a required field the schema neither declares nor allows
+            var schema = """
+                    { "type": "object", "required": ["x"], "additionalProperties": false }""";
+
+            // then generation fails without a producer
+            assertThatThrownBy(() -> JsonSchemaGenerator.of(schema).withSeed(1L).generate())
+                    .isInstanceOf(UnsatisfiableSchemaException.class);
+
+            // when a producer supplies the value, the field is never resolved
+            var gen = JsonSchemaGenerator.of(schema).withSeed(1L)
+                    .withProducer("$.x", () -> "supplied");
+
+            // then
+            assertThat(parse(gen.generate()).get("x").asText()).isEqualTo("supplied");
+        }
+
+        @Test
+        void overriddenValueIsNotValidatedAgainstItsSchema() {
+            // given a validate-and-retry parent (anyOf) around an integer field,
+            // overridden with a non-integer value
+            var schema = """
+                    {
+                      "anyOf": [
+                        { "type": "object", "properties": { "n": { "type": "integer" } }, "required": ["n"] }
+                      ]
+                    }""";
+            var gen = JsonSchemaGenerator.of(schema).withSeed(1L)
+                    .withProducer("$.n", () -> "not-a-number");
+
+            // then the override survives validation and appears verbatim
+            assertThat(parse(gen.generate()).get("n").asText()).isEqualTo("not-a-number");
+        }
+
+        @Test
+        void producerOnUnvisitedPathNeverFires() {
+            // when a producer targets a field the schema does not declare
+            var fired = new boolean[] {false};
+            var gen = JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducer("$.absent", () -> {
+                        fired[0] = true;
+                        return "x";
+                    });
+            gen.generate();
+
+            // then it is never invoked
+            assertThat(fired[0]).isFalse();
+        }
+
+        @Test
+        void withProducerLastCallWinsForSamePath() {
+            // when
+            var gen = JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducer("$.role", () -> "first")
+                    .withProducer("$.role", () -> "second");
+
+            // then
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("second");
+        }
+
+        @Test
+        void withProducerRejectsNullArguments() {
+            // then
+            assertThatThrownBy(() -> JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withProducer(null, () -> "x"))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> JsonSchemaGenerator.of(TWO_FIELD_SCHEMA).withProducer("$.role", null))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        private record Point(int x, int y) {
         }
     }
 }

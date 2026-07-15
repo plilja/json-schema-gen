@@ -1,6 +1,7 @@
 package se.plilja.jsonschemagen.internal.generator;
 
 import java.util.Random;
+import java.util.function.Supplier;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
 import se.plilja.jsonschemagen.internal.generator.format.DateGenerator;
 import se.plilja.jsonschemagen.internal.generator.format.DateTimeGenerator;
@@ -37,6 +38,7 @@ import se.plilja.jsonschemagen.internal.model.UntypedSchema;
 public final class JsonGenerator {
 
     private final Generator<?> delegate;
+    private final GeneratorContext context;
 
     public JsonGenerator(Long seed, SchemaDocument document, GeneratorConfig config) {
         this(document.getRoot(),
@@ -44,11 +46,52 @@ public final class JsonGenerator {
     }
 
     JsonGenerator(Schema schema, GeneratorContext context) {
+        this.context = context;
         this.delegate = buildDelegate(schema, context);
     }
 
     public Object generate() {
         return delegate.generate();
+    }
+
+    /**
+     * Generates a value for the root schema and returns it ready for
+     * serialization: a tree of maps, lists, and scalars with any registered
+     * overrides applied, including one registered at the root path ({@code $}).
+     *
+     * <p>This is the entry point for a full generation run.
+     */
+    public Object generateRoot() {
+        context.startRun();
+        var override = context.currentOverride();
+        var generated = override != null ? override : delegate.generate();
+        return OverriddenValue.strip(generated);
+    }
+
+    /**
+     * Produces the value for the child at {@code path}, relative to the
+     * position currently being generated. If the caller registered an
+     * override at {@code path}, that override is returned and {@code schema}
+     * is never consulted — so an override can stand in for a child whose
+     * schema is unsatisfiable or otherwise unsupported. Otherwise the value
+     * is generated from the schema {@code schema} yields.
+     *
+     * @param path child location relative to the enclosing value, e.g.
+     *     {@code ".name"} or {@code "[0]"}
+     * @param schema supplies the child's schema; evaluated only when no
+     *     override applies
+     */
+    static Object generateForPath(GeneratorContext context, String path, Supplier<Schema> schema) {
+        context.enterPath(path);
+        try {
+            var override = context.currentOverride();
+            if (override != null) {
+                return override;
+            }
+            return context.generatorFor(schema.get()).generate();
+        } finally {
+            context.exitPath(path);
+        }
     }
 
     private static Generator<?> buildDelegate(Schema schema, GeneratorContext context) {

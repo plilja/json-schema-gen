@@ -854,6 +854,38 @@ class SchemaValidatorTest {
         }
     }
 
+    @Nested
+    class OverriddenValueExemption {
+
+        @Test
+        void overriddenValueSatisfiesSchemaItWouldOtherwiseViolate() {
+            var document = SchemaParser.parse("""
+                    {"type": "integer"}
+                    """);
+
+            // when
+            var result = createValidator(document)
+                    .satisfies(new OverriddenValue("not-a-number"), document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+
+        @Test
+        void overriddenValueNestedInObjectIsExempt() {
+            var document = SchemaParser.parse("""
+                    {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+                    """);
+            var value = Map.of("n", new OverriddenValue("not-a-number"));
+
+            // when
+            var result = createValidator(document).satisfies(value, document.getRoot());
+
+            // then
+            assertThat(result).isTrue();
+        }
+    }
+
     private static SchemaValidator createValidator(SchemaDocument document) {
         return new SchemaValidator(new GeneratorContext(document, new Random(42)));
     }

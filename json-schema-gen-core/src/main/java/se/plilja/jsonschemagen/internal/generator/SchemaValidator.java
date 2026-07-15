@@ -49,6 +49,11 @@ final class SchemaValidator {
     }
 
     private boolean satisfies(Object value, Schema schema, int refDepth) {
+        if (value instanceof OverriddenValue) {
+            // A caller-supplied override is exempt from validation; the caller
+            // owns its correctness.
+            return true;
+        }
         if (schema.getRef() != null) {
             if (refDepth >= MAX_REF_DEPTH) {
                 return true;

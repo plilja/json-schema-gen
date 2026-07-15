@@ -1,5 +1,6 @@
 package se.plilja.jsonschemagen.internal.generator;
 
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Random;
@@ -38,6 +39,23 @@ public final class GeneratorContext {
      * their smallest valid form so recursion terminates.
      */
     private int globalRefDepth;
+
+    /**
+     * JSON path of the position currently being generated, e.g. {@code $.a[0]}.
+     * Object and array generators extend it as they descend into a child and
+     * restore it on the way back up, so {@link #currentOverride} can look up
+     * a producer registered for exactly this position.
+     */
+    private final StringBuilder currentPath = new StringBuilder("$");
+
+    /**
+     * Override values already produced during the current generation run, keyed
+     * by path. A validate-and-retry parent may regenerate the same subtree
+     * several times within one run; memoizing here keeps each producer to a
+     * single invocation per run and pins its value across those retries. Reset
+     * by {@link #startRun}.
+     */
+    private final Map<String, Object> producedThisRun = new HashMap<>();
 
     GeneratorContext(SchemaDocument document, Random random) {
         this(document, random, GeneratorConfig.defaults());
@@ -87,6 +105,54 @@ public final class GeneratorContext {
 
     JsonGenerator generatorFor(Schema schema) {
         return generatorCache.computeIfAbsent(schema, s -> new JsonGenerator(s, this));
+    }
+
+    /**
+     * Resets per-run generation state. Must be called once at the start of a
+     * full generation run so that each registered producer is consulted afresh
+     * for that run.
+     */
+    void startRun() {
+        producedThisRun.clear();
+    }
+
+    /**
+     * Returns the caller's override for the position at the current path, or
+     * {@code null} if no producer is registered there.
+     *
+     * <p>Within one run (see {@link #startRun}) a producer is consulted at most
+     * once per path: the first query at a path yields its value and every later
+     * query at that same path returns the same value, so a validate-and-retry
+     * parent that regenerates the subtree does not re-invoke it. The result,
+     * when present, is wrapped so downstream consumers can recognise it as
+     * caller-supplied.
+     */
+    Object currentOverride() {
+        var path = currentPath.toString();
+        var producer = config.producers().get(path);
+        if (producer == null) {
+            return null;
+        }
+        return producedThisRun.computeIfAbsent(path, ignored -> new OverriddenValue(producer.get()));
+    }
+
+    /**
+     * Descends into the child position reached by appending {@code pathSegment}
+     * to the current path (e.g. {@code ".name"} or {@code "[0]"}). Every call
+     * must be paired with an {@link #exitPath} for the same segment once the
+     * child has been generated.
+     */
+    void enterPath(String pathSegment) {
+        currentPath.append(pathSegment);
+    }
+
+    /**
+     * Ascends out of the child entered with {@link #enterPath}, restoring the
+     * path to what it was before. {@code pathSegment} must match the paired
+     * {@link #enterPath} call.
+     */
+    void exitPath(String pathSegment) {
+        currentPath.setLength(currentPath.length() - pathSegment.length());
     }
 
     /**
