@@ -5,13 +5,13 @@
              http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>se.plilja.jsonschemagen</groupId>
-    <artifactId>json-schema-gen</artifactId>
+    <groupId>io.github.gjuton</groupId>
+    <artifactId>gjuton</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
-        <module>json-schema-gen-core</module>
+        <module>gjuton-core</module>
     </modules>
 
     <properties>

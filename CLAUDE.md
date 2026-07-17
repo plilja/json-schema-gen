@@ -1,4 +1,4 @@
-# json-schema-gen
+# gjuton
 
 Runtime test data generator for Java. Takes a JSON Schema and produces
 valid JSON. Supports the most commonly used JSON Schema features across
@@ -60,7 +60,7 @@ exhaustiveness" means in issue acceptance criteria.
 ## Package conventions
 
 ```
-se.plilja.jsonschemagen
+io.github.gjuton
 ├── api          public API — everything a consumer imports
 ├── errors       Exception types (exposed public, thrown from internal)
 └── internal     implementation detail, not part of the public contract

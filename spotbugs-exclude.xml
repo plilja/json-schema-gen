@@ -1,7 +1,7 @@
 <FindBugsFilter>
     <!-- EI_EXPOSE_REP on GeneratorContext.random() is intentional and suppressed. -->
     <Match>
-        <Class name="se.plilja.jsonschemagen.internal.generator.GeneratorContext"/>
+        <Class name="io.github.gjuton.internal.generator.GeneratorContext"/>
         <Method name="random"/>
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
@@ -9,20 +9,20 @@
          Jackson deserialization (via @JsonSetter with List.copyOf) or Lombok
          builder construction (internal code, always passes safe lists). -->
     <Match>
-        <Class name="se.plilja.jsonschemagen.internal.model.SchemaDocument"/>
+        <Class name="io.github.gjuton.internal.model.SchemaDocument"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
     <!-- Conditional is a plain record over Schema references; same
          effectively-immutable rationale as above, but records don't get
          Lombok's @lombok.Generated pass on their accessors. -->
     <Match>
-        <Class name="se.plilja.jsonschemagen.internal.model.Schema$Conditional"/>
+        <Class name="io.github.gjuton.internal.model.Schema$Conditional"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
     <!-- StringFormatGenerator is abstract and package-private; all subclasses are final.
          No finalizer attack surface exists. -->
     <Match>
-        <Class name="se.plilja.jsonschemagen.internal.generator.format.StringFormatGenerator"/>
+        <Class name="io.github.gjuton.internal.generator.format.StringFormatGenerator"/>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
 </FindBugsFilter>
