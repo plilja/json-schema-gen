@@ -10,6 +10,7 @@ import se.plilja.jsonschemagen.internal.model.StringSchema;
 public final class IdnHostnameGenerator implements Generator<String> {
 
     private final HostnameGenerator delegate;
+    private boolean emitted;
 
     public IdnHostnameGenerator(GeneratorContext context, StringSchema schema) {
         this.delegate = new HostnameGenerator(context, schema, Alphabets.IDN_CANONICAL, Alphabets.IDN_POOL);
@@ -17,6 +18,18 @@ public final class IdnHostnameGenerator implements Generator<String> {
 
     @Override
     public String generate() {
-        return delegate.generate();
+        var value = delegate.generate();
+        emitted = true;
+        return value;
+    }
+
+    @Override
+    public long emittedCount() {
+        return emitted ? 1 : 0;
+    }
+
+    @Override
+    public long totalCount() {
+        return 1;
     }
 }

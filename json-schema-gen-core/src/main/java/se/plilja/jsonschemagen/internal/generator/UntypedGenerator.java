@@ -47,6 +47,21 @@ final class UntypedGenerator extends PhaseGenerator<UntypedGenerator.GenerationP
         return GenerationPhase.CYCLE;
     }
 
+    /**
+     * The deliberate value set is the fixed collection of type-spanning
+     * samples, so full coverage means each sample has been emitted at least
+     * once.
+     */
+    @Override
+    public long totalCount() {
+        return TYPE_SAMPLES.size();
+    }
+
+    @Override
+    public long emittedCount() {
+        return Math.min(cycleIndex, TYPE_SAMPLES.size());
+    }
+
     @Override
     protected GenerationPhase advanceToNext(GenerationPhase current) {
         if (current == GenerationPhase.CYCLE && cycleIndex < TYPE_SAMPLES.size()) {

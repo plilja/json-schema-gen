@@ -40,8 +40,17 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     private final Map<String, RgxGen> patternGenerators;
 
     enum GenerationPhase {
-        MIN_PROPERTIES, MAX_PROPERTIES, RANDOM
+        MIN_PROPERTIES, MAX_PROPERTIES, FOCUS, RANDOM
     }
+
+    /**
+     * Index into the optional-property list of the property the {@code FOCUS}
+     * phase is currently driving toward full coverage. Advances only once that
+     * property is fully covered or proves impossible to place, so every optional
+     * property — including one a fixed selection order would never reach under
+     * {@code maxProperties} — eventually gets exercised.
+     */
+    private int focusCursor;
 
     ObjectGenerator(GeneratorContext context, ObjectSchema schema) {
         super(GenerationPhase.class, context);
@@ -63,6 +72,43 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     @Override
     protected GenerationPhase minimalPhase() {
         return GenerationPhase.MIN_PROPERTIES;
+    }
+
+    /**
+     * Keeps the {@code FOCUS} phase in effect until every optional property has
+     * been driven to full coverage or skipped as unplaceable, so one pass
+     * through the phases still exercises all of them before generation settles
+     * into purely random values.
+     */
+    @Override
+    protected GenerationPhase advanceToNext(GenerationPhase current) {
+        if (current == GenerationPhase.FOCUS && !allOptionalPropertiesFocused()) {
+            return GenerationPhase.FOCUS;
+        }
+        return super.advanceToNext(current);
+    }
+
+    private boolean allOptionalPropertiesFocused() {
+        var order = reverseTopologicalOrderDependentProperties();
+        var optionalProperties = satisfiableOptionalProperties(order);
+        return focusCursor >= optionalProperties.size();
+    }
+
+    /**
+     * A declared property is generated from its own schema instance only when no
+     * {@code patternProperties} regex also constrains it; otherwise the value
+     * comes from a per-call merge whose coverage folds into this object's phase
+     * counts instead.
+     */
+    @Override
+    public List<Schema> structuralChildren() {
+        var children = new ArrayList<Schema>();
+        for (var entry : schema.getProperties().entrySet()) {
+            if (!hasMatchingPatternProperty(entry.getKey())) {
+                children.add(entry.getValue());
+            }
+        }
+        return children;
     }
 
     @Override
@@ -101,12 +147,71 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         }
 
         int targetCount = switch (phase) {
-            case MIN_PROPERTIES -> effectiveMin;
+            // FOCUS fills minimally so the focused property's own generator is
+            // exercised in isolation, not shadowed by a dependent schema that a
+            // larger fill would pull in and merge over it.
+            case MIN_PROPERTIES, FOCUS -> effectiveMin;
             case MAX_PROPERTIES -> effectiveMax;
             case RANDOM -> effectiveMin + context.random().nextInt(effectiveMax - effectiveMin + 1);
         };
 
-        return result(selectAndResolve(order, optionalProperties, targetCount, effectiveMin, effectiveMax));
+        var focusProperty = phase == GenerationPhase.FOCUS ? focusedProperty(optionalProperties) : null;
+        Map<String, Object> generated;
+        try {
+            generated = selectAndResolve(order, optionalProperties, targetCount, effectiveMin, effectiveMax, focusProperty);
+        } catch (UnsatisfiableSchemaException e) {
+            // Forcing the focused property proved impossible; skip it so later FOCUS
+            // attempts move on instead of re-targeting the same property every retry.
+            if (focusProperty != null) {
+                focusCursor++;
+            }
+            throw e;
+        }
+        if (phase == GenerationPhase.FOCUS) {
+            advanceFocus(optionalProperties, generated);
+        }
+        return result(generated);
+    }
+
+    /**
+     * The optional property the {@code FOCUS} phase should include in this
+     * object, or {@code null} when every optional property has already been
+     * covered or the schema declares none.
+     */
+    private String focusedProperty(List<String> optionalProperties) {
+        if (focusCursor >= optionalProperties.size()) {
+            return null;
+        }
+        return optionalProperties.get(focusCursor);
+    }
+
+    /**
+     * Moves the {@code FOCUS} phase on to the next optional property once the
+     * current one is either fully covered or could not be placed within
+     * {@code maxProperties}; otherwise leaves it in place so the next
+     * {@code FOCUS} phase keeps exercising it.
+     */
+    private void advanceFocus(List<String> optionalProperties, Map<String, Object> generated) {
+        var focusProperty = focusedProperty(optionalProperties);
+        if (focusProperty == null) {
+            return;
+        }
+        boolean placed = generated.containsKey(focusProperty);
+        if (!placed || isFullyCovered(focusProperty)) {
+            focusCursor++;
+        }
+    }
+
+    /**
+     * Whether {@code property}'s own generator has emitted all of its deliberate
+     * values. Considers only the property's direct generator, not nested
+     * descendants, so a deeply nested subtree may still be incomplete when this
+     * returns {@code true}.
+     */
+    private boolean isFullyCovered(String property) {
+        var fieldSchema = resolveFieldSchema(schema, property);
+        var generator = context.generatorFor(fieldSchema);
+        return generator.emittedCount() >= generator.totalCount();
     }
 
     /**
@@ -115,12 +220,19 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
      * with full transitive resolution; optional properties are added
      * tentatively and kept only when the resolved set fits within
      * {@code targetCount}.
+     *
+     * <p>A non-null {@code focusProperty} is included ahead of the
+     * {@code targetCount} gate, bounded only by the schema's {@code maxProperties}
+     * - so a property whose mandatory dependencies would otherwise exceed the
+     * phase target still appears, and is omitted only when {@code maxProperties}
+     * makes it impossible.
      */
     private Map<String, Object> selectAndResolve(List<String> order,
                                                  List<String> optionalProperties,
                                                  int targetCount,
                                                  int effectiveMin,
-                                                 int effectiveMax) {
+                                                 int effectiveMax,
+                                                 String focusProperty) {
         var selected = new LinkedHashSet<String>();
         var effectiveSchema = schema;
 
@@ -135,6 +247,16 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             throw new UnsatisfiableSchemaException(
                     "Required properties with dependentRequired (" + selected.size()
                             + ") exceed maxProperties (" + schema.getMaxProperties() + ")");
+        }
+
+        if (focusProperty != null && !selected.contains(focusProperty)) {
+            var tentative = new LinkedHashSet<>(selected);
+            var tentativeSchema = resolveProperty(effectiveSchema, focusProperty, tentative);
+            Integer maxProperties = schema.getMaxProperties();
+            if (maxProperties == null || tentative.size() <= maxProperties) {
+                selected = tentative;
+                effectiveSchema = tentativeSchema;
+            }
         }
 
         // Add optional properties, tentatively resolving to check fit
@@ -190,7 +312,11 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
      */
     private ObjectSchema resolveProperty(ObjectSchema current, String property, LinkedHashSet<String> selected) {
         selected.add(property);
-        selected.addAll(schema.getDependentRequired().getOrDefault(property, List.of()));
+        for (var dependent : schema.getDependentRequired().getOrDefault(property, List.of())) {
+            if (!selected.contains(dependent)) {
+                current = resolveProperty(current, dependent, selected);
+            }
+        }
 
         var depSchema = schema.getDependentSchemas().get(property);
         if (depSchema != null) {

@@ -44,6 +44,20 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
         return GenerationPhase.EXHAUSTIVE;
     }
 
+    /**
+     * The deliberate value set is every surviving enum literal, so full
+     * coverage means each literal has been emitted at least once.
+     */
+    @Override
+    public long totalCount() {
+        return values.size();
+    }
+
+    @Override
+    public long emittedCount() {
+        return Math.min(index, values.size());
+    }
+
     @Override
     protected GenerationPhase advanceToNext(GenerationPhase current) {
         if (current == GenerationPhase.EXHAUSTIVE) {

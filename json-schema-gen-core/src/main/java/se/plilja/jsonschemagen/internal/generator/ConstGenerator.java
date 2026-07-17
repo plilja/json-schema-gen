@@ -16,6 +16,7 @@ import se.plilja.jsonschemagen.internal.model.Schema;
 final class ConstGenerator implements Generator<Object> {
 
     private final Object value;
+    private boolean emitted;
 
     ConstGenerator(GeneratorContext context, Object value, Schema validationTarget) {
         // A const has a single candidate, so if it violates a sibling
@@ -30,6 +31,17 @@ final class ConstGenerator implements Generator<Object> {
 
     @Override
     public Object generate() {
+        emitted = true;
         return value;
+    }
+
+    @Override
+    public long emittedCount() {
+        return emitted ? 1 : 0;
+    }
+
+    @Override
+    public long totalCount() {
+        return 1;
     }
 }

@@ -1114,6 +1114,33 @@ class AnyOfAllOfOneOfGeneratorTest {
         }
     }
 
+    @Test
+    void deliberateValuesCycleThroughBranches() {
+        // when
+        var generator = generatorFor("""
+                {
+                    "oneOf": [ { "type": "integer" }, { "type": "string" } ]
+                }
+                """);
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(2);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when: cycle through both branches
+        generator.generate();
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(2);
+
+        // when: random phase re-picks without exceeding the deliberate set
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(2);
+    }
+
     private static AnyOfAllOfOneOfGenerator generatorFor(String json) {
         var document = SchemaParser.parse(json);
         return new AnyOfAllOfOneOfGenerator(

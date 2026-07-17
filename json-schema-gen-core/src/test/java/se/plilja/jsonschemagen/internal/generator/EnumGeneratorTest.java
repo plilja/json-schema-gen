@@ -106,4 +106,29 @@ class EnumGeneratorTest {
             assertThatCode(generator::generate).doesNotThrowAnyException();
         }
     }
+
+    @Test
+    void totalIsValueCountAndEmittedTracksExhaustion() {
+        // when
+        var values = List.<Object>of("red", "green", "blue");
+        var generator = new EnumGenerator(withSeed(42), values, enumSchema(values));
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(3);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when
+        generator.generate();
+        generator.generate();
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(3);
+
+        // when: random phase re-picks without exceeding the deliberate set
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(3);
+    }
 }

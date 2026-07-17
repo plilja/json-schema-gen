@@ -102,6 +102,30 @@ final class IfThenElseGenerator extends PhaseGenerator<IfThenElseGenerator.Gener
         return ifAndThenAndParent != null ? GenerationPhase.THEN : GenerationPhase.ELSE;
     }
 
+    /**
+     * The deliberate value set is the satisfiable branches — {@code then} and
+     * {@code else}. An unsatisfiable branch is excluded so full coverage stays
+     * reachable; full coverage means each satisfiable branch has been emitted.
+     */
+    @Override
+    public long totalCount() {
+        long thenBranch = ifAndThenAndParent != null ? 1 : 0;
+        long elseBranch = elseAndParent != null ? 1 : 0;
+        return thenBranch + elseBranch;
+    }
+
+    @Override
+    public long emittedCount() {
+        long emitted = 0;
+        if (ifAndThenAndParent != null && GenerationPhase.THEN.ordinal() < currentPhaseOrdinal()) {
+            emitted++;
+        }
+        if (elseAndParent != null && GenerationPhase.ELSE.ordinal() < currentPhaseOrdinal()) {
+            emitted++;
+        }
+        return emitted;
+    }
+
     @Override
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
         var composed = switch (phase) {

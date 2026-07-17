@@ -78,6 +78,9 @@
                             <targetTests>
                                 <param>se.plilja.jsonschemagen.*</param>
                             </targetTests>
+                            <excludedTestClasses>
+                                <param>se.plilja.jsonschemagen.ArchitectureTest</param>
+                            </excludedTestClasses>
                             <outputFormats>
                                 <param>HTML</param>
                                 <param>XML</param>

@@ -11,6 +11,23 @@ import se.plilja.jsonschemagen.internal.model.StringSchema;
 class IdnEmailGeneratorTest {
 
     @Test
+    void singleDeliberateValueEmittedAfterFirstCall() {
+        // when
+        var schema = StringSchema.builder().format(StringFormat.IDN_EMAIL).build();
+        var generator = new IdnEmailGenerator(withSeed(42), schema);
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(1);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(1);
+    }
+
+    @Test
     void producesValueContainingAt() {
         var schema = StringSchema.builder().format(StringFormat.IDN_EMAIL).build();
         var generator = new IdnEmailGenerator(withSeed(42), schema);

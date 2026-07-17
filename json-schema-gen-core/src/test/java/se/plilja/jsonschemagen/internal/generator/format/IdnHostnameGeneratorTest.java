@@ -13,6 +13,23 @@ import se.plilja.jsonschemagen.internal.model.StringSchema;
 class IdnHostnameGeneratorTest {
 
     @Test
+    void singleDeliberateValueEmittedAfterFirstCall() {
+        // when
+        var schema = StringSchema.builder().format(StringFormat.IDN_HOSTNAME).build();
+        var generator = new IdnHostnameGenerator(withSeed(42), schema);
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(1);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(1);
+    }
+
+    @Test
     void producesHostnamesContainingADot() {
         var schema = StringSchema.builder().format(StringFormat.IDN_HOSTNAME).build();
         var generator = new IdnHostnameGenerator(withSeed(42), schema);

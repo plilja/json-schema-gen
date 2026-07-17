@@ -50,6 +50,23 @@ class ConstGeneratorTest {
                 .isInstanceOf(UnsatisfiableSchemaException.class);
     }
 
+    @Test
+    void singleDeliberateValueEmittedAfterFirstCall() {
+        // when
+        var root = SchemaParser.parse(CONST_SATISFYING_ONE_OF).getRoot();
+        var generator = new ConstGenerator(contextFor(root), root.getConstValue(), root);
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(1);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(1);
+    }
+
     private static GeneratorContext contextFor(Schema root) {
         var document = new SchemaDocument(root, Map.of());
         return new GeneratorContext(document, new Random(42));

@@ -55,6 +55,29 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
         return GenerationPhase.MIN_LENGTH;
     }
 
+    /**
+     * The element schemas the array can actually place, using the same schema
+     * instances as generation: reachable tuple-prefix positions, the item schema
+     * when there is room past the prefix, and the {@code contains} schema. Empty
+     * when {@code maxItems} leaves no room, so unreachable element schemas do not
+     * inflate the coverage denominator.
+     */
+    @Override
+    public List<Schema> structuralChildren() {
+        var children = new ArrayList<Schema>();
+        int maxItems = coalesce(schema.getMaxItems(), Integer.MAX_VALUE);
+        for (int i = 0; i < prefixSchemas.size() && i < maxItems; i++) {
+            children.add(prefixSchemas.get(i));
+        }
+        if (additionalItemsAllowed && maxItems > prefixSchemas.size()) {
+            children.add(itemSchema);
+        }
+        if (schema.getContains() != null && maxItems > 0) {
+            children.add(schema.getContains());
+        }
+        return children;
+    }
+
     @Override
     protected GenerationResult<List<Object>> generatePhase(GenerationPhase phase) {
         int minLength = coalesce(schema.getMinItems(), 0);
@@ -87,13 +110,13 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
         var list = new ArrayList<>();
         if (schema.isUniqueItems()) {
             var seen = new HashSet<>();
-            for (var i = 0; i < length; i++) {
+            for (int i = 0; i < length; i++) {
                 var element = generateDistinctElementAt(i, containsIndex, seen);
                 list.add(element);
                 seen.add(element);
             }
         } else {
-            for (var i = 0; i < length; i++) {
+            for (int i = 0; i < length; i++) {
                 list.add(generateElementAt(i, containsIndex));
             }
         }
@@ -121,7 +144,7 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
      *         produced within the retry budget
      */
     private Object generateDistinctElementAt(int index, int containsIndex, Set<Object> seen) {
-        for (var attempt = 0; attempt < UNIQUE_ITEMS_RETRY_BUDGET; attempt++) {
+        for (int attempt = 0; attempt < UNIQUE_ITEMS_RETRY_BUDGET; attempt++) {
             var element = generateElementAt(index, containsIndex);
             if (!seen.contains(element)) {
                 return element;

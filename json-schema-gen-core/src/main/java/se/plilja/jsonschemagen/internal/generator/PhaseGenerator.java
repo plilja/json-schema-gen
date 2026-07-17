@@ -13,10 +13,13 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     private static final int RETRY_BUDGET = 10;
 
     protected final GeneratorContext context;
+    private final int phaseCount;
     private E phase;
+    private long emitted;
 
     protected PhaseGenerator(Class<E> phaseClass, GeneratorContext context) {
         this.context = context;
+        this.phaseCount = phaseClass.getEnumConstants().length;
         this.phase = EnumUtil.first(phaseClass);
     }
 
@@ -44,6 +47,9 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
                 phase = candidate;
             }
             if (result instanceof GenerationResult.Present<R> present) {
+                if (cycling) {
+                    emitted = Math.min(emitted + 1, phaseCount);
+                }
                 return present.value();
             }
         }
@@ -63,6 +69,30 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
 
     protected E advanceToNext(E current) {
         return EnumUtil.next(current);
+    }
+
+    /**
+     * The generator's deliberate values are its boundary phases plus one slot
+     * for the terminal random phase, which every generator must emit once to be
+     * complete.
+     */
+    @Override
+    public long totalCount() {
+        return phaseCount;
+    }
+
+    @Override
+    public long emittedCount() {
+        return emitted;
+    }
+
+    /**
+     * The ordinal, within the declared phase order, of the phase this generator
+     * is currently positioned at. A caller compares it against a particular
+     * phase's ordinal to tell whether generation has reached that phase.
+     */
+    protected final int currentPhaseOrdinal() {
+        return phase.ordinal();
     }
 
     /**

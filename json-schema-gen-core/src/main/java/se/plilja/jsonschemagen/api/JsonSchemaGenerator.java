@@ -36,13 +36,6 @@ import se.plilja.jsonschemagen.internal.parser.SchemaParser;
  */
 public final class JsonSchemaGenerator {
 
-    private static final int DEFAULT_REF_SOFT_DEPTH = 2;
-    private static final int DEFAULT_REF_HARD_DEPTH = 4;
-    private static final int SHALLOW_REF_SOFT_DEPTH = 1;
-    private static final int SHALLOW_REF_HARD_DEPTH = 2;
-    private static final int DEEP_REF_SOFT_DEPTH = 4;
-    private static final int DEEP_REF_HARD_DEPTH = 8;
-
     private final String schema;
     private final Long seed;
     private final Map<String, ValueProducer> producers;
@@ -103,7 +96,7 @@ public final class JsonSchemaGenerator {
         var document = SchemaParser.parse(schema);
         return new JsonSchemaGenerator(
                 schema, document, null, Collections.emptyMap(),
-                GenerationMode.EXHAUSTIVE, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH);
+                GenerationMode.EXHAUSTIVE, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
     }
 
     /**
@@ -119,7 +112,7 @@ public final class JsonSchemaGenerator {
         var document = SchemaParser.parse(schema.toPath().toAbsolutePath());
         return new JsonSchemaGenerator(
                 schemaString, document, null, Collections.emptyMap(),
-                GenerationMode.EXHAUSTIVE, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH);
+                GenerationMode.EXHAUSTIVE, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
     }
 
     /**
@@ -218,7 +211,7 @@ public final class JsonSchemaGenerator {
      * recursion limits set by a previous call.
      */
     public JsonSchemaGenerator withRecursionLimitsShallow() {
-        return withRecursionLimits(SHALLOW_REF_SOFT_DEPTH, SHALLOW_REF_HARD_DEPTH);
+        return withRecursionLimits(GeneratorConfig.SHALLOW_REF_SOFT_DEPTH, GeneratorConfig.SHALLOW_REF_HARD_DEPTH);
     }
 
     /**
@@ -227,7 +220,7 @@ public final class JsonSchemaGenerator {
      * set by a previous call.
      */
     public JsonSchemaGenerator withRecursionLimitsDeep() {
-        return withRecursionLimits(DEEP_REF_SOFT_DEPTH, DEEP_REF_HARD_DEPTH);
+        return withRecursionLimits(GeneratorConfig.DEEP_REF_SOFT_DEPTH, GeneratorConfig.DEEP_REF_HARD_DEPTH);
     }
 
     /**
@@ -237,8 +230,7 @@ public final class JsonSchemaGenerator {
      * generation terminates; at the hard ceiling a {@code $ref} that still has
      * not bottomed out is treated as unsatisfiable and generation fails.
      *
-     * <p>When unset, the limits are soft {@value #DEFAULT_REF_SOFT_DEPTH} /
-     * hard {@value #DEFAULT_REF_HARD_DEPTH}.
+     * <p>When unset, the default {@code $ref} depth limits apply.
      *
      * @param soft depth at which recursive structures collapse to their
      *     smallest valid form; must be {@code >= 1} and {@code <= hard}
@@ -294,5 +286,28 @@ public final class JsonSchemaGenerator {
      */
     public void generate(File out) throws IOException {
         Files.writeString(out.toPath(), generate());
+    }
+
+    /**
+     * Returns how thoroughly {@link #generate()} has exercised this schema so
+     * far, as a fraction in {@code [0, 1]} of the schema's <em>deliberate value
+     * set</em>: every enum literal, each boundary value, both booleans, and each
+     * const value. The fraction is value-weighted, never decreases across calls,
+     * and is exactly {@code 1.0} only once every deliberate value has been
+     * emitted. This makes it safe to generate towards a target:
+     *
+     * <pre>{@code
+     * JsonSchemaGenerator gen = JsonSchemaGenerator.of(schema);
+     * while (gen.valueCoverage() < 0.95) {
+     *     gen.generate();
+     * }
+     * }</pre>
+     *
+     * <p>Tracks the boundary-value cycle of the default
+     * {@link GenerationMode#EXHAUSTIVE} mode; under {@link GenerationMode#RANDOM_ONLY}
+     * coverage does not climb to a high target.
+     */
+    public double valueCoverage() {
+        return generator.valueCoverage();
     }
 }

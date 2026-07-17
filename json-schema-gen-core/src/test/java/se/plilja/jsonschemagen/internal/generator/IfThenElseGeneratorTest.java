@@ -178,6 +178,35 @@ class IfThenElseGeneratorTest {
         assertThatThrownBy(generator::generate).isInstanceOf(UnsatisfiableSchemaException.class);
     }
 
+    @Test
+    void bothBranchesAreDeliberateValues() {
+        // when
+        var document = SchemaParser.parse(STATUS_CONDITIONAL);
+        var generator = generatorFor(document);
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(2);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when: then-branch only
+        generator.generate();
+
+        // then: only the then branch counts until the else branch is emitted
+        assertThat(generator.emittedCount()).isEqualTo(1);
+
+        // when: else-branch
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(2);
+
+        // when: random phase re-picks a branch without exceeding the set
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(2);
+    }
+
     private static IfThenElseGenerator generatorFor(SchemaDocument document) {
         return new IfThenElseGenerator(
                 new GeneratorContext(document, new Random(42)),

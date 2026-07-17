@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import se.plilja.jsonschemagen.api.GenerationMode;
@@ -367,6 +369,268 @@ class JsonSchemaGeneratorTest {
         }
 
         private record Point(int x, int y) {
+        }
+    }
+
+    @Nested
+    class ValueCoverage {
+
+        @Test
+        void startsAtZeroBeforeAnyGeneration() {
+            // when
+            var gen = JsonSchemaGenerator.of(INT_SCHEMA).withSeed(1L);
+
+            // then
+            assertThat(gen.valueCoverage()).isEqualTo(0.0);
+        }
+
+        @Test
+        void booleanReachesOneAfterBothValuesAndRandom() {
+            var gen = JsonSchemaGenerator.of("""
+                    { "type": "boolean" }""").withSeed(1L);
+
+            // when: both boundary values
+            gen.generate();
+            gen.generate();
+
+            // then
+            assertThat(gen.valueCoverage()).isLessThan(1.0);
+
+            // when: one random value completes the set
+            gen.generate();
+
+            // then
+            assertThat(gen.valueCoverage()).isEqualTo(1.0);
+        }
+
+        @Test
+        void enumReachesOneAfterAllLiteralsEmitted() {
+            var gen = JsonSchemaGenerator.of("""
+                    { "enum": ["a", "b", "c"] }""").withSeed(1L);
+
+            // when
+            var coverages = new ArrayList<Double>();
+            for (int i = 0; i < 3; i++) {
+                gen.generate();
+                coverages.add(gen.valueCoverage());
+            }
+
+            // then
+            assertThat(coverages).containsExactly(1.0 / 3, 2.0 / 3, 1.0);
+        }
+
+        @Test
+        void neverDecreasesAcrossManyCalls() {
+            var gen = JsonSchemaGenerator.of(OBJECT_SCHEMA).withSeed(7L);
+
+            // when
+            double previous = gen.valueCoverage();
+            for (int i = 0; i < 100; i++) {
+                gen.generate();
+                double current = gen.valueCoverage();
+
+                // then
+                assertThat(current).isGreaterThanOrEqualTo(previous);
+                previous = current;
+            }
+        }
+
+        @Test
+        void largeEnumDominatesTheMeasure() {
+            var literals = new ArrayList<String>();
+            for (int i = 0; i < 100; i++) {
+                literals.add("\"v" + i + "\"");
+            }
+            var gen = JsonSchemaGenerator.of("{ \"enum\": [" + String.join(",", literals) + "] }").withSeed(1L);
+
+            // when: a handful of calls
+            for (int i = 0; i < 5; i++) {
+                gen.generate();
+            }
+
+            // then: coverage grows in fine steps, nowhere near complete
+            assertThat(gen.valueCoverage()).isLessThan(0.1);
+        }
+
+        @Test
+        void loopToTargetTerminatesForObjectWithOptionalField() {
+            var gen = JsonSchemaGenerator.of("""
+                    {
+                      "type": "object",
+                      "properties": {
+                        "req": { "type": "integer", "minimum": 0, "maximum": 5 },
+                        "opt": { "type": "boolean" }
+                      },
+                      "required": ["req"]
+                    }""").withSeed(1L);
+
+            // when
+            int calls = 0;
+            while (gen.valueCoverage() < 1.0 && calls < 1000) {
+                gen.generate();
+                calls++;
+            }
+
+            // then
+            assertThat(gen.valueCoverage()).isEqualTo(1.0);
+            assertThat(calls).isLessThan(1000);
+        }
+
+        @Test
+        void sharedRefDefinitionIsCountedOnce() {
+            // "flag" is reached through two properties but is one shared
+            // generator. Counting its ten literals twice would leave the
+            // denominator forever unfillable, so reaching 1.0 proves it is
+            // counted once.
+            var gen = JsonSchemaGenerator.of("""
+                    {
+                      "type": "object",
+                      "$defs": {
+                        "flag": { "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] }
+                      },
+                      "properties": {
+                        "a": { "$ref": "#/$defs/flag" },
+                        "b": { "$ref": "#/$defs/flag" }
+                      },
+                      "required": ["a", "b"]
+                    }""").withSeed(1L);
+
+            // when
+            int calls = 0;
+            while (gen.valueCoverage() < 1.0 && calls < 1000) {
+                gen.generate();
+                calls++;
+            }
+
+            // then
+            assertThat(gen.valueCoverage()).isEqualTo(1.0);
+        }
+
+        @Test
+        void loopToTargetTerminatesForRecursiveSchema() {
+            var gen = JsonSchemaGenerator.of(RECURSIVE_SCHEMA).withSeed(1L);
+
+            // when
+            int calls = 0;
+            while (gen.valueCoverage() < 0.95 && calls < 1000) {
+                gen.generate();
+                calls++;
+            }
+
+            // then
+            assertThat(gen.valueCoverage()).isGreaterThanOrEqualTo(0.95);
+            assertThat(calls).isLessThan(1000);
+        }
+    }
+
+    /**
+     * An enum's deliberate value set is every literal. These tests assert the
+     * generator actually emits all of them when the enum is nested behind each
+     * kind of construct, checking the generated output rather than the coverage
+     * measure. The literals are distinctive so random values of other branches
+     * cannot masquerade as them.
+     */
+    @Nested
+    class EnumExhaustiveness {
+
+        private static final String[] ENUM_VALUES = {"enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"};
+
+        @Test
+        void emitsAllEnumValuesBehindOptionalProperty() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "type": "object",
+                      "properties": { "p": { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] } }
+                    }""");
+        }
+
+        @Test
+        void emitsAllEnumValuesBehindIfThen() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "if": { "properties": { "kind": { "const": "match" } }, "required": ["kind"] },
+                      "then": {
+                        "properties": { "e": { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] } },
+                        "required": ["kind", "e"]
+                      }
+                    }""");
+        }
+
+        @Test
+        void emitsAllEnumValuesBehindElse() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "if": { "properties": { "kind": { "const": "match" } }, "required": ["kind"] },
+                      "then": { "type": "object" },
+                      "else": {
+                        "properties": { "e": { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] } },
+                        "required": ["e"]
+                      }
+                    }""");
+        }
+
+        @Test
+        void emitsAllEnumValuesInsideArray() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "type": "array",
+                      "items": { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] },
+                      "minItems": 1
+                    }""");
+        }
+
+        @Test
+        void emitsAllEnumValuesBehindOneOf() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "oneOf": [
+                        { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] },
+                        { "type": "integer" }
+                      ]
+                    }""");
+        }
+
+        @Test
+        void emitsAllEnumValuesBehindAnyOf() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "anyOf": [
+                        { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] },
+                        { "type": "string" }
+                      ]
+                    }""");
+        }
+
+        @Test
+        @Disabled("#121 — the enum branch over-matches the string branch, so every enum "
+                + "value fails the exactly-one oneOf rule and is discarded; the values are "
+                + "swallowed and never reach output, yet valueCoverage() still reports 1.0")
+        void emitsAllEnumValuesBehindOverMatchingOneOf() {
+            assertEmitsAllEnumValues("""
+                    {
+                      "oneOf": [
+                        { "enum": ["enumAlphaXQ7", "enumBravoXQ7", "enumCharlieXQ7"] },
+                        { "type": "string" }
+                      ]
+                    }""");
+        }
+
+        private void assertEmitsAllEnumValues(String schema) {
+            var gen = JsonSchemaGenerator.of(schema).withSeed(1L);
+
+            // when
+            var seen = new HashSet<String>();
+            for (int i = 0; i < 1000 && seen.size() < ENUM_VALUES.length; i++) {
+                var output = gen.generate();
+                for (var value : ENUM_VALUES) {
+                    if (output.contains("\"" + value + "\"")) {
+                        seen.add(value);
+                    }
+                }
+            }
+
+            // then
+            assertThat(seen).containsExactlyInAnyOrder(ENUM_VALUES);
         }
     }
 }

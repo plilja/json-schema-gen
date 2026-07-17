@@ -534,4 +534,63 @@ class NumericGeneratorTest {
         }
     }
 
+    @Nested
+    class CoverageCounts {
+
+        @Test
+        void totalCountIsPhaseCountIncludingRandomSlot() {
+            // when
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-10)).maximum(BigDecimal.valueOf(10)).build());
+
+            // then
+            assertThat(generator.totalCount()).isEqualTo(6);
+        }
+
+        @Test
+        void emittedCountStartsAtZero() {
+            // when
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-10)).maximum(BigDecimal.valueOf(10)).build());
+
+            // then
+            assertThat(generator.emittedCount()).isEqualTo(0);
+        }
+
+        @Test
+        void emittedCountReachesTotalOnlyAfterRandomEmitted() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").minimum(BigDecimal.valueOf(-10)).maximum(BigDecimal.valueOf(10)).build());
+
+            // when: five boundary phases (MIN,MAX,ZERO,NEAR_MIN,NEAR_MAX)
+            for (int i = 0; i < 5; i++) {
+                generator.generate();
+            }
+
+            // then: boundaries emitted, random slot still open
+            assertThat(generator.emittedCount()).isEqualTo(5);
+            assertThat(generator.totalCount()).isEqualTo(6);
+
+            // when: one more call emits the random slot
+            generator.generate();
+
+            // then
+            assertThat(generator.emittedCount()).isEqualTo(6);
+        }
+
+        @Test
+        void skippedBoundaryPhasesStillAdvanceCoverage() {
+            var generator = new NumericGenerator(withSeed(42),
+                    NumericSchema.builder().type("integer").build());
+
+            // when: enough calls to walk past all skipped boundaries into random
+            for (int i = 0; i < 10; i++) {
+                generator.generate();
+            }
+
+            // then: unconstrained reaches full coverage despite skipped MIN/MAX/NEAR
+            assertThat(generator.emittedCount()).isEqualTo(generator.totalCount());
+        }
+    }
+
 }

@@ -27,6 +27,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
     private final Schema base;
     private final List<List<Schema>> oneOfGroups;
     private final List<List<Schema>> anyOfGroups;
+    private final int exhaustiveCycleLength;
     private int index = 0;
 
     enum GenerationPhase {
@@ -94,6 +95,33 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
             }
             anyOfGroups.add(mergedGroup);
         }
+
+        int maxGroupSize = 0;
+        for (var group : oneOfGroups) {
+            maxGroupSize = Math.max(maxGroupSize, group.size());
+        }
+        for (var group : anyOfGroups) {
+            maxGroupSize = Math.max(maxGroupSize, group.size());
+        }
+        // allOf-only has no branches to cycle but still emits one deliberate
+        // value (the merged base).
+        this.exhaustiveCycleLength = Math.max(1, maxGroupSize);
+    }
+
+    /**
+     * The deliberate value set is one value per branch — the largest
+     * {@code oneOf}/{@code anyOf} group, or a single value from the merged base
+     * when the schema is {@code allOf}-only. Full coverage means each of those
+     * branches has been emitted.
+     */
+    @Override
+    public long totalCount() {
+        return exhaustiveCycleLength;
+    }
+
+    @Override
+    public long emittedCount() {
+        return Math.min(index, exhaustiveCycleLength);
     }
 
     /**

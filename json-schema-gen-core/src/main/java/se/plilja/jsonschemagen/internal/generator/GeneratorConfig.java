@@ -31,6 +31,20 @@ public record GeneratorConfig(
         int refHardDepth,
         Map<String, Supplier<Object>> producers) {
 
+    /**
+     * The {@code $ref} expansion ceilings for the three presets, and the single
+     * source of truth for the depths the public API exposes. A soft ceiling is
+     * the depth at which recursive structures collapse to their smallest valid
+     * form so generation terminates; a hard ceiling is the depth beyond which a
+     * still-recursing {@code $ref} is treated as unsatisfiable.
+     */
+    public static final int DEFAULT_REF_SOFT_DEPTH = 3;
+    public static final int DEFAULT_REF_HARD_DEPTH = 4;
+    public static final int SHALLOW_REF_SOFT_DEPTH = 1;
+    public static final int SHALLOW_REF_HARD_DEPTH = 2;
+    public static final int DEEP_REF_SOFT_DEPTH = 5;
+    public static final int DEEP_REF_HARD_DEPTH = 8;
+
     public GeneratorConfig {
         producers = Map.copyOf(producers);
     }
@@ -38,9 +52,9 @@ public record GeneratorConfig(
     /**
      * The configuration used when the caller sets no options — exhaustive
      * boundary-value generation, no synthesized extra properties, no value
-     * overrides, and the default {@code $ref} depth limits (soft 2, hard 4).
+     * overrides, and the default {@code $ref} depth limits.
      */
     static GeneratorConfig defaults() {
-        return new GeneratorConfig(false, false, 2, 4, Map.of());
+        return new GeneratorConfig(false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of());
     }
 }

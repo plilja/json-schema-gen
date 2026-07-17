@@ -2,28 +2,20 @@ package se.plilja.jsonschemagen.internal.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.stream.IntStream;
+import java.util.Random;
 import org.junit.jupiter.api.Test;
+import se.plilja.jsonschemagen.internal.parser.SchemaParser;
 
-class NullGeneratorTest {
-
-    @Test
-    void alwaysReturnsNull() {
-        var generator = new NullGenerator();
-
-        // when
-        var values = IntStream.range(0, 20)
-                .mapToObj(i -> generator.generate())
-                .toList();
-
-        // then
-        assertThat(values).containsOnly((Object) null);
-    }
+class NotGeneratorTest {
 
     @Test
     void singleDeliberateValueEmittedAfterFirstCall() {
         // when
-        var generator = new NullGenerator();
+        var document = SchemaParser.parse("""
+                {"not": {"type": "string"}}
+                """);
+        var context = new GeneratorContext(document, new Random(42));
+        var generator = new NotGenerator(context, document.getRoot());
 
         // then
         assertThat(generator.totalCount()).isEqualTo(1);

@@ -54,4 +54,28 @@ class UntypedGeneratorTest {
                 null
         );
     }
+
+    @Test
+    void totalIsSampleCountAndEmittedTracksCycle() {
+        // when
+        var generator = new UntypedGenerator(withSeed(42));
+
+        // then
+        assertThat(generator.totalCount()).isEqualTo(13);
+        assertThat(generator.emittedCount()).isEqualTo(0);
+
+        // when: walk the full type-spanning cycle
+        for (int i = 0; i < 13; i++) {
+            generator.generate();
+        }
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(13);
+
+        // when: random phase re-picks without exceeding the deliberate set
+        generator.generate();
+
+        // then
+        assertThat(generator.emittedCount()).isEqualTo(13);
+    }
 }

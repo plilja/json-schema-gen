@@ -91,6 +91,15 @@ public final class GeneratorContext {
         return globalRefDepth >= config.refSoftDepth();
     }
 
+    /**
+     * The {@code $ref} depth at which generation collapses to minimal form. A
+     * generator only ever reached at or beyond this depth never emits its
+     * deliberate values, so coverage excludes it.
+     */
+    int refSoftDepth() {
+        return config.refSoftDepth();
+    }
+
     int getGlobalRefDepth() {
         return globalRefDepth;
     }

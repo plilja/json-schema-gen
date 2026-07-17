@@ -110,6 +110,21 @@ Avoid nesting multiple calls/operations on one line (e.g.
 into a named local variable instead — it makes the sequence of
 operations readable and each intermediate value debuggable.
 
+## Design conventions
+
+Follows John Ousterhout's "A Philosophy of Software Design" approach.
+
+- **Prefer deep methods with simple contracts over many shallow ones.**
+  When the choice is between one longer, more complex method and
+  spreading the same logic across several small methods plus extra
+  helper classes/records/fields, prefer the single method. Complexity
+  inside one well-named method is cheaper than complexity in the class
+  structure and the contracts between the pieces — a reader follows one
+  body top to bottom instead of hopping between fragments and holding
+  their interfaces in their head. Split only when a piece has real
+  reuse or a genuinely independent, simpler contract of its own, not
+  merely to make each method short.
+
 ## Documentation conventions
 
 Follows John Ousterhout's "A Philosophy of Software Design" approach.

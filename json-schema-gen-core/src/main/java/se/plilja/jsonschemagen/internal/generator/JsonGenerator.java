@@ -1,5 +1,9 @@
 package se.plilja.jsonschemagen.internal.generator;
 
+import java.util.ArrayDeque;
+import java.util.Collection;
+import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Random;
 import java.util.function.Supplier;
 import se.plilja.jsonschemagen.errors.UnsatisfiableSchemaException;
@@ -40,9 +44,17 @@ public final class JsonGenerator {
     private final Generator<?> delegate;
     private final GeneratorContext context;
 
+    /**
+     * The generators the coverage measure sums over, fixed at root construction.
+     * Non-null only on the root generator; child generators created for nested
+     * schemas leave it null since coverage is a whole-document measure.
+     */
+    private Collection<JsonGenerator> coverageFixedSet;
+
     public JsonGenerator(Long seed, SchemaDocument document, GeneratorConfig config) {
         this(document.getRoot(),
                 new GeneratorContext(document, seed != null ? new Random(seed) : new Random(), config));
+        this.coverageFixedSet = captureCoverageSet();
     }
 
     JsonGenerator(Schema schema, GeneratorContext context) {
@@ -52,6 +64,84 @@ public final class JsonGenerator {
 
     public Object generate() {
         return delegate.generate();
+    }
+
+    /**
+     * The fraction of the schema's deliberate value set emitted so far, in
+     * {@code [0, 1]}. Callable only on the root generator.
+     *
+     * <p>Monotone non-decreasing across {@link #generateRoot()} calls, exactly
+     * {@code 1.0} iff every deliberate value has been emitted, and strictly less
+     * than {@code 1.0} otherwise. A schema with no deliberate values is
+     * vacuously complete at {@code 1.0}.
+     */
+    public double valueCoverage() {
+        long emitted = 0;
+        long total = 0;
+        for (var generator : coverageFixedSet) {
+            emitted += generator.emittedCount();
+            total += generator.totalCount();
+        }
+        if (total == 0 || emitted == total) {
+            return 1.0;
+        }
+        return (double) emitted / total;
+    }
+
+    /**
+     * The generators whose counts the coverage measure sums over: this root and
+     * every generator reachable through {@link #structuralChildren()}, each
+     * counted once. Omitted are subtrees that prove unsatisfiable and generators
+     * reachable only at or beyond the {@code $ref} soft depth, which always
+     * generate minimally and so never emit their deliberate values. Reachability
+     * is measured at the shallowest {@code $ref} depth, so a definition shared by
+     * a shallow and a deep reference still counts.
+     */
+    private Collection<JsonGenerator> captureCoverageSet() {
+        int softDepth = context.refSoftDepth();
+        // Shallowest ref depth found for each generator so far; also serves as
+        // the visited set. Crossing a $ref adds one level, every other edge is
+        // free, so a generator found again by a shorter path is lowered and
+        // revisited — pulling in descendants a deeper first visit left out.
+        var refDepth = new IdentityHashMap<JsonGenerator, Integer>();
+        var queue = new ArrayDeque<JsonGenerator>();
+        refDepth.put(this, 0);
+        queue.add(this);
+        while (!queue.isEmpty()) {
+            var generator = queue.pollFirst();
+            int depth = refDepth.get(generator);
+            boolean crossesRef = generator.delegate instanceof RefGenerator;
+            int childDepth = crossesRef ? depth + 1 : depth;
+            if (childDepth >= softDepth) {
+                continue;
+            }
+            for (var childSchema : generator.structuralChildren()) {
+                JsonGenerator child;
+                try {
+                    child = context.generatorFor(childSchema);
+                } catch (UnsatisfiableSchemaException unsatisfiable) {
+                    continue;
+                }
+                Integer recorded = refDepth.get(child);
+                if (recorded == null || childDepth < recorded) {
+                    refDepth.put(child, childDepth);
+                    queue.add(child);
+                }
+            }
+        }
+        return refDepth.keySet();
+    }
+
+    long emittedCount() {
+        return delegate.emittedCount();
+    }
+
+    long totalCount() {
+        return delegate.totalCount();
+    }
+
+    List<Schema> structuralChildren() {
+        return delegate.structuralChildren();
     }
 
     /**

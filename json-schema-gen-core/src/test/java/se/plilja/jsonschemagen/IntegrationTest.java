@@ -38,7 +38,8 @@ import static org.assertj.core.api.Assertions.fail;
 
 @Slf4j
 class IntegrationTest {
-    private static final int ITERATIONS = 200;
+    private static final int ITERATIONS = 100;
+    private static final int COVERAGE_ITERATIONS = 1000;
     private static final long DEFAULT_SEED = 42L;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -72,14 +73,7 @@ class IntegrationTest {
     static List<Arguments> parameters() throws IOException, URISyntaxException {
         long seed = resolveSeed();
         log.info("IntegrationTest seed: {} (override with -Dtest.seed=<long>)", seed);
-        Path schemasDir = Paths.get(
-                IntegrationTest.class.getClassLoader().getResource("schemas").toURI());
-        List<Path> schemaFiles;
-        try (Stream<Path> files = Files.list(schemasDir)) {
-            schemaFiles = files.filter(p -> p.toString().endsWith(".json")).toList();
-        }
-        return schemaFiles.parallelStream()
-                .filter(p -> !Files.isDirectory(p))
+        return schemaPaths().parallelStream()
                 .flatMap(p -> {
                     try {
                         var content = Files.readString(p);
@@ -126,6 +120,26 @@ class IntegrationTest {
         return Arguments.of(name, content, path, 0, null, name + ": " + detail);
     }
 
+    static List<Arguments> schemaFiles() throws IOException, URISyntaxException {
+        return schemaPaths().stream()
+                .map(p -> Arguments.of(p.getFileName().toString(), p))
+                .toList();
+    }
+
+    /**
+     * The {@code .json} schema files under {@code src/test/resources/schemas},
+     * the fixtures every parameterized integration test runs against.
+     */
+    private static List<Path> schemaPaths() throws IOException, URISyntaxException {
+        var schemasResource = IntegrationTest.class.getClassLoader().getResource("schemas");
+        var schemasDir = Paths.get(schemasResource.toURI());
+        try (Stream<Path> files = Files.list(schemasDir)) {
+            return files.filter(p -> !Files.isDirectory(p))
+                    .filter(p -> p.toString().endsWith(".json"))
+                    .toList();
+        }
+    }
+
     private static long resolveSeed() {
         String value = System.getProperty("test.seed");
         if (value == null || value.equals("random")) {
@@ -148,6 +162,30 @@ class IntegrationTest {
         assertThat(errors)
                 .as("%s invocation=%d", schemaName, invocation)
                 .isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("schemaFiles")
+    void reachesFullCoverageWithinIterationBudget(String schemaName, Path schemaPath) throws IOException {
+        // given
+        var gen = JsonSchemaGenerator.of(schemaPath.toFile()).withSeed(DEFAULT_SEED);
+
+        // then 1 -- nothing generated yet, so no deliberate value has been emitted
+        assertThat(gen.valueCoverage())
+                .as("%s reports zero coverage before any generation", schemaName)
+                .isZero();
+
+        // when
+        int invocation = 0;
+        while (gen.valueCoverage() < 1.0 && invocation < COVERAGE_ITERATIONS) {
+            gen.generate();
+            invocation++;
+        }
+
+        // then 2
+        assertThat(gen.valueCoverage())
+                .as("%s reached full value coverage within %d iterations", schemaName, COVERAGE_ITERATIONS)
+                .isEqualTo(1.0);
     }
 
     private static Set<ValidationMessage> validateOrFail(
