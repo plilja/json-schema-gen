@@ -97,7 +97,7 @@ class IntegrationTest {
     private static List<Arguments> generateRows(String name, String content, Path path, long seed, GenerationMode mode) {
         Gjuton gen;
         try {
-            gen = callWithTimeout(() -> Gjuton.of(path.toFile()).withSeed(seed).withMode(mode), GENERATION_TIMEOUT_SECONDS);
+            gen = callWithTimeout(() -> Gjuton.of(path.toFile()).withSeed(seed).withGenerationMode(mode), GENERATION_TIMEOUT_SECONDS);
         } catch (RuntimeException e) {
             return List.of(failureRow(name, content, path, "schema build " + e.getMessage()));
         }

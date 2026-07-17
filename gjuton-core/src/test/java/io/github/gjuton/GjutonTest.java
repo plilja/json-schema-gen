@@ -48,7 +48,7 @@ class GjutonTest {
         // when
         var unconfigured = generate(Gjuton.of(OBJECT_SCHEMA).withSeed(42L), 50);
         var explicit = generate(
-                Gjuton.of(OBJECT_SCHEMA).withMode(GenerationMode.EXHAUSTIVE).withSeed(42L), 50);
+                Gjuton.of(OBJECT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(42L), 50);
 
         // then
         assertThat(unconfigured).isEqualTo(explicit);
@@ -67,7 +67,7 @@ class GjutonTest {
     @Test
     void randomOnlyModeSkipsBoundaryValues() {
         // when
-        var gen = Gjuton.of(INT_SCHEMA).withMode(GenerationMode.RANDOM_ONLY).withSeed(1L);
+        var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.RANDOM_ONLY).withSeed(1L);
         var values = generate(gen, 100);
 
         // then
@@ -76,11 +76,11 @@ class GjutonTest {
     }
 
     @Test
-    void withModeLastCallWins() {
+    void withGenerationModeLastCallWins() {
         // when
         var gen = Gjuton.of(INT_SCHEMA)
-                .withMode(GenerationMode.RANDOM_ONLY)
-                .withMode(GenerationMode.EXHAUSTIVE)
+                .withGenerationMode(GenerationMode.RANDOM_ONLY)
+                .withGenerationMode(GenerationMode.EXHAUSTIVE)
                 .withSeed(1L);
 
         // then
@@ -131,9 +131,9 @@ class GjutonTest {
     }
 
     @Test
-    void withModeRejectsNull() {
+    void withGenerationModeRejectsNull() {
         // then
-        assertThatThrownBy(() -> Gjuton.of(INT_SCHEMA).withMode(null))
+        assertThatThrownBy(() -> Gjuton.of(INT_SCHEMA).withGenerationMode(null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

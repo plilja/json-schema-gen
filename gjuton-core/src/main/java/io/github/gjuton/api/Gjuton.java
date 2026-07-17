@@ -186,7 +186,7 @@ public final class Gjuton {
      * @param mode the strategy for choosing values across successive
      *     {@link #generate()} calls
      */
-    public Gjuton withMode(GenerationMode mode) {
+    public Gjuton withGenerationMode(GenerationMode mode) {
         if (mode == null) {
             throw new IllegalArgumentException("mode must not be null");
         }
