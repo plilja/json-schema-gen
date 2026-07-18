@@ -7,11 +7,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.gjuton</groupId>
-    <artifactId>gjuton</artifactId>
+    <artifactId>gjuton-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Gjuton</name>
+    <name>Gjuton Parent</name>
     <description>Runtime test data generator for Java. Takes a JSON Schema and produces valid JSON for use in automated tests.</description>
     <url>https://github.com/gjuton/gjuton</url>
 
@@ -31,7 +31,7 @@
     </developers>
 
     <modules>
-        <module>gjuton-core</module>
+        <module>gjuton</module>
     </modules>
 
     <scm child.scm.connection.inherit.append.path="false"

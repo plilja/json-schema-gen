@@ -7,14 +7,14 @@
 
     <parent>
         <groupId>io.github.gjuton</groupId>
-        <artifactId>gjuton</artifactId>
+        <artifactId>gjuton-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
 
-    <artifactId>gjuton-core</artifactId>
+    <artifactId>gjuton</artifactId>
 
-    <name>Gjuton Core</name>
-    <description>Core library of Gjuton. Turns a JSON Schema into valid JSON test data.</description>
+    <name>Gjuton</name>
+    <description>Turns a JSON Schema into valid JSON test data.</description>
 
     <dependencies>
         <dependency>

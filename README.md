@@ -16,7 +16,7 @@ Maven:
 ```xml
 <dependency>
     <groupId>io.github.gjuton</groupId>
-    <artifactId>gjuton-core</artifactId>
+    <artifactId>gjuton</artifactId>
     <!-- TODO: version — not yet published to Maven Central -->
 </dependency>
 ```
@@ -25,7 +25,7 @@ Gradle:
 
 ```groovy
 // TODO: version — not yet published to Maven Central
-implementation 'io.github.gjuton:gjuton-core'
+implementation 'io.github.gjuton:gjuton'
 ```
 
 Gjuton pulls in two transitive dependencies: Jackson (JSON serialization) and
