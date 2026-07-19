@@ -64,7 +64,7 @@ public final class Gjuton {
         this.refSoftDepth = refSoftDepth;
         this.refHardDepth = refHardDepth;
         var config = new GeneratorConfig(
-                mode == GenerationMode.RANDOM_ONLY,
+                mode == GenerationMode.RANDOM,
                 generateAdditionalProperties,
                 refSoftDepth,
                 refHardDepth,
@@ -96,7 +96,7 @@ public final class Gjuton {
         var document = SchemaParser.parse(schema);
         return new Gjuton(
                 schema, document, null, Collections.emptyMap(),
-                GenerationMode.EXHAUSTIVE, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
+                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
     }
 
     /**
@@ -112,7 +112,7 @@ public final class Gjuton {
         var document = SchemaParser.parse(schema.toPath().toAbsolutePath());
         return new Gjuton(
                 schemaString, document, null, Collections.emptyMap(),
-                GenerationMode.EXHAUSTIVE, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
+                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
     }
 
     /**
@@ -181,7 +181,7 @@ public final class Gjuton {
 
     /**
      * Returns a new generator using the given generation mode. Overrides any
-     * mode set by a previous call. Defaults to {@link GenerationMode#EXHAUSTIVE}.
+     * mode set by a previous call. Defaults to {@link GenerationMode#RANDOM}.
      *
      * @param mode the strategy for choosing values across successive
      *     {@link #generate()} calls
@@ -289,25 +289,33 @@ public final class Gjuton {
     }
 
     /**
-     * Returns how thoroughly {@link #generate()} has exercised this schema so
-     * far, as a fraction in {@code [0, 1]} of the schema's <em>deliberate value
-     * set</em>: every enum literal, each boundary value, both booleans, and each
-     * const value. The fraction is value-weighted, never decreases across calls,
-     * and is exactly {@code 1.0} only once every deliberate value has been
-     * emitted. This makes it safe to generate towards a target:
+     * Returns how thoroughly {@link #generate()} has exercised this schema's
+     * <em>deliberate value set</em>. Only meaningful under
+     * {@link GenerationMode#EXHAUSTIVE} mode; under the default
+     * {@link GenerationMode#RANDOM} mode, which emits no deliberate values,
+     * this throws {@link IllegalStateException}.
+     *
+     * <p>The value is a fraction in {@code [0, 1]} of the deliberate value
+     * set: every enum literal, each boundary value, both booleans, and each
+     * const value. It is value-weighted, never decreases across calls, and is
+     * exactly {@code 1.0} only once every deliberate value has been emitted.
+     * This makes it safe to generate towards a target:
      *
      * <pre>{@code
-     * Gjuton gen = Gjuton.of(schema);
+     * Gjuton gen = Gjuton.of(schema).withGenerationMode(GenerationMode.EXHAUSTIVE);
      * while (gen.valueCoverage() < 0.95) {
      *     gen.generate();
      * }
      * }</pre>
      *
-     * <p>Tracks the boundary-value cycle of the default
-     * {@link GenerationMode#EXHAUSTIVE} mode; under {@link GenerationMode#RANDOM_ONLY}
-     * coverage does not climb to a high target.
+     * @throws IllegalStateException if this instance is in
+     *     {@link GenerationMode#RANDOM} mode
      */
     public double valueCoverage() {
+        if (mode == GenerationMode.RANDOM) {
+            throw new IllegalStateException(
+                    "valueCoverage() is only meaningful in EXHAUSTIVE mode; this instance is in RANDOM mode");
+        }
         return generator.valueCoverage();
     }
 }

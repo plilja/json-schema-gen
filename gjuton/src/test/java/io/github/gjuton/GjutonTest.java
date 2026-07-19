@@ -44,11 +44,11 @@ class GjutonTest {
             }""";
 
     @Test
-    void unconfiguredMatchesExplicitExhaustive() {
+    void unconfiguredMatchesExplicitRandom() {
         // when
         var unconfigured = generate(Gjuton.of(OBJECT_SCHEMA).withSeed(42L), 50);
         var explicit = generate(
-                Gjuton.of(OBJECT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(42L), 50);
+                Gjuton.of(OBJECT_SCHEMA).withGenerationMode(GenerationMode.RANDOM).withSeed(42L), 50);
 
         // then
         assertThat(unconfigured).isEqualTo(explicit);
@@ -57,7 +57,7 @@ class GjutonTest {
     @Test
     void exhaustiveModeEmitsBoundaryValuesFirst() {
         // when
-        var gen = Gjuton.of(INT_SCHEMA).withSeed(1L);
+        var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
         // then
         assertThat(gen.generate()).isEqualTo("5");
@@ -65,9 +65,9 @@ class GjutonTest {
     }
 
     @Test
-    void randomOnlyModeSkipsBoundaryValues() {
+    void randomModeSkipsBoundaryValues() {
         // when
-        var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.RANDOM_ONLY).withSeed(1L);
+        var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.RANDOM).withSeed(1L);
         var values = generate(gen, 100);
 
         // then
@@ -79,7 +79,7 @@ class GjutonTest {
     void withGenerationModeLastCallWins() {
         // when
         var gen = Gjuton.of(INT_SCHEMA)
-                .withGenerationMode(GenerationMode.RANDOM_ONLY)
+                .withGenerationMode(GenerationMode.RANDOM)
                 .withGenerationMode(GenerationMode.EXHAUSTIVE)
                 .withSeed(1L);
 
@@ -378,16 +378,25 @@ class GjutonTest {
         @Test
         void startsAtZeroBeforeAnyGeneration() {
             // when
-            var gen = Gjuton.of(INT_SCHEMA).withSeed(1L);
+            var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // then
             assertThat(gen.valueCoverage()).isEqualTo(0.0);
         }
 
         @Test
+        void throwsInRandomMode() {
+            // when
+            var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.RANDOM).withSeed(1L);
+
+            // then
+            assertThatThrownBy(gen::valueCoverage).isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
         void booleanReachesOneAfterBothValuesAndRandom() {
             var gen = Gjuton.of("""
-                    { "type": "boolean" }""").withSeed(1L);
+                    { "type": "boolean" }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when: both boundary values
             gen.generate();
@@ -406,7 +415,7 @@ class GjutonTest {
         @Test
         void enumReachesOneAfterAllLiteralsEmitted() {
             var gen = Gjuton.of("""
-                    { "enum": ["a", "b", "c"] }""").withSeed(1L);
+                    { "enum": ["a", "b", "c"] }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when
             var coverages = new ArrayList<Double>();
@@ -421,7 +430,7 @@ class GjutonTest {
 
         @Test
         void neverDecreasesAcrossManyCalls() {
-            var gen = Gjuton.of(OBJECT_SCHEMA).withSeed(7L);
+            var gen = Gjuton.of(OBJECT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(7L);
 
             // when
             double previous = gen.valueCoverage();
@@ -441,7 +450,8 @@ class GjutonTest {
             for (int i = 0; i < 100; i++) {
                 literals.add("\"v" + i + "\"");
             }
-            var gen = Gjuton.of("{ \"enum\": [" + String.join(",", literals) + "] }").withSeed(1L);
+            var gen = Gjuton.of("{ \"enum\": [" + String.join(",", literals) + "] }")
+                    .withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when: a handful of calls
             for (int i = 0; i < 5; i++) {
@@ -462,7 +472,7 @@ class GjutonTest {
                         "opt": { "type": "boolean" }
                       },
                       "required": ["req"]
-                    }""").withSeed(1L);
+                    }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when
             int calls = 0;
@@ -493,7 +503,7 @@ class GjutonTest {
                         "b": { "$ref": "#/$defs/flag" }
                       },
                       "required": ["a", "b"]
-                    }""").withSeed(1L);
+                    }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when
             int calls = 0;
@@ -508,7 +518,7 @@ class GjutonTest {
 
         @Test
         void loopToTargetTerminatesForRecursiveSchema() {
-            var gen = Gjuton.of(RECURSIVE_SCHEMA).withSeed(1L);
+            var gen = Gjuton.of(RECURSIVE_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when
             int calls = 0;
@@ -616,7 +626,7 @@ class GjutonTest {
         }
 
         private void assertEmitsAllEnumValues(String schema) {
-            var gen = Gjuton.of(schema).withSeed(1L);
+            var gen = Gjuton.of(schema).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // when
             var seen = new HashSet<String>();

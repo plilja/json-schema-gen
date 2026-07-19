@@ -2,8 +2,9 @@
 
 Gjuton is a test-data generator for Java. Point it at a JSON Schema and it
 produces JSON that is valid against that schema. It offers two modes of
-operation: *exhaustive*, which deliberately exercises the schema's boundary
-conditions to surface bugs, and *random*, which emits arbitrary valid values.
+operation: *random* (the default), which emits arbitrary valid values, and
+*exhaustive*, which deliberately exercises the schema's boundary conditions to
+surface bugs.
 
 ## Requirements
 
@@ -54,10 +55,10 @@ String schema = """
 String json = Gjuton.of(schema).generate();
 ```
 
-Each call to `generate()` returns another valid value for the same schema.
-Trouble-prone boundary values (empty strings, minimums, maximums, zero) are
-emitted first to expose bugs in the system under test, followed by random valid
-values.
+Each call to `generate()` returns another valid value for the same schema. By
+default the values are random; switch to `EXHAUSTIVE` mode (see below) to emit
+trouble-prone boundary values (empty strings, minimums, maximums, zero) first,
+to expose bugs in the system under test.
 
 ## Configuration
 
@@ -68,7 +69,7 @@ chain naturally.
 ```java
 Gjuton gen = Gjuton.of(schema)
         .withSeed(42)
-        .withGenerationMode(GenerationMode.RANDOM_ONLY);
+        .withGenerationMode(GenerationMode.EXHAUSTIVE);
 ```
 
 ### Reproducible output
@@ -85,13 +86,13 @@ Gjuton gen = Gjuton.of(schema).withSeed(42);
 
 `withGenerationMode(GenerationMode)` selects how values are chosen:
 
-- `EXHAUSTIVE` (default) — emit trouble-prone boundary values first, then random
-  valid values. Maximises the chance of surfacing bugs.
-- `RANDOM_ONLY` — emit only random valid values, skipping the boundary-value
+- `RANDOM` (default) — emit only random valid values, skipping the boundary-value
   cycle. Faster and less repetitive when boundary coverage is not needed.
+- `EXHAUSTIVE` — emit trouble-prone boundary values first, then random valid
+  values. Maximises the chance of surfacing bugs.
 
 ```java
-Gjuton gen = Gjuton.of(schema).withGenerationMode(GenerationMode.RANDOM_ONLY);
+Gjuton gen = Gjuton.of(schema).withGenerationMode(GenerationMode.EXHAUSTIVE);
 ```
 
 ### Custom value producers
@@ -141,7 +142,7 @@ Gjuton gen = Gjuton.of(schema).withRecursionLimitsShallow();
 
 ## Knowing when to stop
 
-Under the default `EXHAUSTIVE` mode, `valueCoverage()` reports how thoroughly
+Under `EXHAUSTIVE` mode, `valueCoverage()` reports how thoroughly
 `generate()` has exercised the schema so far, as a fraction in `[0, 1]` of its
 deliberate value set — every enum literal, each boundary value, both booleans,
 and each const value. The fraction never decreases and reaches `1.0` only once
@@ -149,15 +150,15 @@ every deliberate value has been emitted, so you can generate towards a target an
 stop:
 
 ```java
-Gjuton gen = Gjuton.of(schema);
+Gjuton gen = Gjuton.of(schema).withGenerationMode(GenerationMode.EXHAUSTIVE);
 List<String> samples = new ArrayList<>();
 while (gen.valueCoverage() < 0.95) {
     samples.add(gen.generate());
 }
 ```
 
-Under `RANDOM_ONLY` there is no boundary-value cycle, so coverage does not climb
-to a high target.
+`valueCoverage()` is only meaningful under `EXHAUSTIVE` mode; calling it on an
+instance in the default `RANDOM` mode throws `IllegalStateException`.
 
 ## Behavior notes
 

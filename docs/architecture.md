@@ -37,11 +37,13 @@ before dispatching on type.
 
 ## Generation strategy
 
-The generator prioritises values that are likely to expose bugs in the system
-under test. For each type it emits deterministic "trouble-prone" values first —
-an empty string for strings; the minimum, maximum, and zero for integers — and
-then random valid values. This trouble-prone-first ordering is what
-"boundary-value exhaustiveness" means in issue acceptance criteria.
+The generator supports two strategies, selected by `GenerationMode`. The default
+`RANDOM` mode emits random valid values. The opt-in `EXHAUSTIVE` mode prioritises
+values that are likely to expose bugs in the system under test: for each type it
+emits deterministic "trouble-prone" values first — an empty string for strings;
+the minimum, maximum, and zero for integers — and then random valid values. This
+trouble-prone-first ordering is what "boundary-value exhaustiveness" means in
+issue acceptance criteria.
 
 ## Package layering
 

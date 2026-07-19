@@ -167,7 +167,7 @@ class IntegrationTest {
     @MethodSource("schemaFiles")
     void reachesFullCoverageWithinIterationBudget(String schemaName, Path schemaPath) throws IOException {
         // given
-        var gen = Gjuton.of(schemaPath.toFile()).withSeed(DEFAULT_SEED);
+        var gen = Gjuton.of(schemaPath.toFile()).withSeed(DEFAULT_SEED).withGenerationMode(GenerationMode.EXHAUSTIVE);
 
         // then 1 -- nothing generated yet, so no deliberate value has been emitted
         assertThat(gen.valueCoverage())
