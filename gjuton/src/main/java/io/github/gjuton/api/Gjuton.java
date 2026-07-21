@@ -43,6 +43,7 @@ public final class Gjuton {
     private final String schema;
     private final Long seed;
     private final Map<String, ValueProducer> producers;
+    private final Map<String, ValueProducer> nameProducers;
     private final GenerationMode mode;
     private final boolean generateAdditionalProperties;
     private final int refSoftDepth;
@@ -56,6 +57,7 @@ public final class Gjuton {
             SchemaDocument document,
             Long seed,
             Map<String, ValueProducer> producers,
+            Map<String, ValueProducer> nameProducers,
             GenerationMode mode,
             boolean generateAdditionalProperties,
             int refSoftDepth,
@@ -65,6 +67,7 @@ public final class Gjuton {
         this.document = document;
         this.seed = seed;
         this.producers = producers;
+        this.nameProducers = nameProducers;
         this.mode = mode;
         this.generateAdditionalProperties = generateAdditionalProperties;
         this.refSoftDepth = refSoftDepth;
@@ -76,6 +79,7 @@ public final class Gjuton {
                 refSoftDepth,
                 refHardDepth,
                 toValueSuppliers(producers),
+                toValueSuppliers(nameProducers),
                 toValueConstraints(mode, constraints));
         this.generator = new JsonGenerator(seed, document, config);
     }
@@ -124,8 +128,15 @@ public final class Gjuton {
         }
         var document = SchemaParser.parse(schema);
         return new Gjuton(
-                schema, document, null, Collections.emptyMap(),
-                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH,
+                schema,
+                document,
+                null,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                GenerationMode.RANDOM,
+                false,
+                GeneratorConfig.DEFAULT_REF_SOFT_DEPTH,
+                GeneratorConfig.DEFAULT_REF_HARD_DEPTH,
                 Constraints.of());
     }
 
@@ -144,8 +155,15 @@ public final class Gjuton {
         var schemaString = Files.readString(schema.toPath());
         var document = SchemaParser.parse(schema.toPath().toAbsolutePath());
         return new Gjuton(
-                schemaString, document, null, Collections.emptyMap(),
-                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH,
+                schemaString,
+                document,
+                null,
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                GenerationMode.RANDOM,
+                false,
+                GeneratorConfig.DEFAULT_REF_SOFT_DEPTH,
+                GeneratorConfig.DEFAULT_REF_HARD_DEPTH,
                 Constraints.of());
     }
 
@@ -171,7 +189,16 @@ public final class Gjuton {
      */
     public Gjuton withSeed(long seed) {
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
+                schema,
+                document,
+                seed,
+                producers,
+                nameProducers,
+                mode,
+                generateAdditionalProperties,
+                refSoftDepth,
+                refHardDepth,
+                constraints);
     }
 
     /**
@@ -212,8 +239,67 @@ public final class Gjuton {
         var merged = new LinkedHashMap<>(producers);
         merged.put(jsonPath, producer);
         return new Gjuton(
-                schema, document, seed, Collections.unmodifiableMap(merged),
-                mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
+                schema,
+                document,
+                seed,
+                Collections.unmodifiableMap(merged),
+                nameProducers,
+                mode,
+                generateAdditionalProperties,
+                refSoftDepth,
+                refHardDepth,
+                constraints);
+    }
+
+    /**
+     * Returns a new generator that overrides the value of every property named
+     * {@code propertyName} with whatever {@code producer} returns, regardless
+     * of the property's position in the schema. A later call with the same name
+     * replaces an earlier one.
+     *
+     * <p>Name-based producers apply wherever a matching property name appears.
+     * When both a path-based producer ({@link #withProducer}) and a name-based
+     * producer match the same position, the path-based producer wins.
+     *
+     * <p>The producer fires once per {@link #generate()} call, and every
+     * position with the same name in that call shares the returned value — the
+     * property means the same thing wherever it appears. It is not invoked at
+     * positions where the name does not appear as an object property (e.g.
+     * array elements). Like path-based overrides, the value is inserted as-is
+     * without schema validation.
+     *
+     * <pre>{@code
+     * Gjuton gen = Gjuton.of(schema)
+     *         .withProducerByName("customerId", () -> "cust-42");
+     *
+     * // every property named "customerId" in the schema will be "cust-42"
+     * String json = gen.generate();
+     * }</pre>
+     *
+     * @param propertyName the property name to match
+     * @param producer supplies the value placed at each matching position
+     * @see #withProducer(String, ValueProducer)
+     */
+    public Gjuton withProducerByName(String propertyName, ValueProducer producer) {
+        if (propertyName == null) {
+            throw new IllegalArgumentException("propertyName must not be null");
+        }
+        if (producer == null) {
+            throw new IllegalArgumentException("producer must not be null");
+        }
+        var merged = new LinkedHashMap<>(nameProducers);
+        merged.put(propertyName, producer);
+        return new Gjuton(
+                schema,
+                document,
+                seed,
+                producers,
+                Collections.unmodifiableMap(merged),
+                mode,
+                generateAdditionalProperties,
+                refSoftDepth,
+                refHardDepth,
+                constraints);
     }
 
     /**
@@ -228,7 +314,16 @@ public final class Gjuton {
             throw new IllegalArgumentException("mode must not be null");
         }
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
+                schema,
+                document,
+                seed,
+                producers,
+                nameProducers,
+                mode,
+                generateAdditionalProperties,
+                refSoftDepth,
+                refHardDepth,
+                constraints);
     }
 
     /**
@@ -239,7 +334,16 @@ public final class Gjuton {
      */
     public Gjuton withAdditionalProperties() {
         return new Gjuton(
-                schema, document, seed, producers, mode, true, refSoftDepth, refHardDepth, constraints);
+                schema,
+                document,
+                seed,
+                producers,
+                nameProducers,
+                mode,
+                true,
+                refSoftDepth,
+                refHardDepth,
+                constraints);
     }
 
     /**
@@ -284,7 +388,16 @@ public final class Gjuton {
                     "soft limit (" + soft + ") must not exceed hard limit (" + hard + ")");
         }
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, soft, hard, constraints);
+                schema,
+                document,
+                seed,
+                producers,
+                nameProducers,
+                mode,
+                generateAdditionalProperties,
+                soft,
+                hard,
+                constraints);
     }
 
     /**
@@ -315,7 +428,16 @@ public final class Gjuton {
             throw new IllegalArgumentException("constraints must not be null");
         }
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
+                schema,
+                document,
+                seed,
+                producers,
+                nameProducers,
+                mode,
+                generateAdditionalProperties,
+                refSoftDepth,
+                refHardDepth,
+                constraints);
     }
 
     /**

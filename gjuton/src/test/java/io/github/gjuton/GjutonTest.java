@@ -397,6 +397,126 @@ class GjutonTest {
     }
 
     @Nested
+    class ProducersByName {
+
+        private static final String TWO_FIELD_SCHEMA = """
+                {
+                  "type": "object",
+                  "properties": { "role": { "type": "string" }, "n": { "type": "integer" } },
+                  "required": ["role", "n"]
+                }""";
+
+        @Test
+        void nameProducerMatchesAtMultiplePositions() {
+            // given a schema with the same property name at two different paths
+            var schema = """
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "child": {
+                          "type": "object",
+                          "properties": { "id": { "type": "string" } },
+                          "required": ["id"]
+                        }
+                      },
+                      "required": ["id", "child"]
+                    }""";
+
+            // when
+            var gen = Gjuton.of(schema).withSeed(1L)
+                    .withProducerByName("id", () -> "fixed-id");
+
+            // then
+            var root = parse(gen.generate());
+            assertThat(root.get("id").asText()).isEqualTo("fixed-id");
+            assertThat(root.get("child").get("id").asText()).isEqualTo("fixed-id");
+        }
+
+        @Test
+        void nameProducerSharesValueAcrossPositionsWithinOneGenerate() {
+            // given a schema with the same property name at two different paths
+            var schema = """
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "child": {
+                          "type": "object",
+                          "properties": { "id": { "type": "string" } },
+                          "required": ["id"]
+                        }
+                      },
+                      "required": ["id", "child"]
+                    }""";
+
+            // when — a counter proves the producer fires once per generate(), not per position
+            var counter = new int[] {0};
+            var gen = Gjuton.of(schema).withSeed(1L)
+                    .withProducerByName("id", () -> "id-" + counter[0]++);
+
+            // then — both positions share the same value within one generate() call
+            var root = parse(gen.generate());
+            assertThat(root.get("id").asText()).isEqualTo("id-0");
+            assertThat(root.get("child").get("id").asText()).isEqualTo("id-0");
+
+            // and a second generate() call gets a fresh value
+            var root2 = parse(gen.generate());
+            assertThat(root2.get("id").asText()).isEqualTo("id-1");
+            assertThat(root2.get("child").get("id").asText()).isEqualTo("id-1");
+        }
+
+        @Test
+        void pathProducerTakesPrecedenceOverNameProducer() {
+            // when
+            var gen = Gjuton.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducerByName("role", () -> "by-name")
+                    .withProducer("$.role", () -> "by-path");
+
+            // then
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("by-path");
+        }
+
+        @Test
+        void nameProducerDoesNotMatchArrayElements() {
+            var schema = """
+                    { "type": "array", "items": { "type": "integer" }, "minItems": 2 }""";
+
+            // when — register a name that happens to be the string "0"
+            var fired = new boolean[] {false};
+            var gen = Gjuton.of(schema).withSeed(1L)
+                    .withProducerByName("0", () -> {
+                        fired[0] = true;
+                        return 999;
+                    });
+            gen.generate();
+
+            // then
+            assertThat(fired[0]).isFalse();
+        }
+
+        @Test
+        void withProducerByNameLastCallWinsForSameName() {
+            // when
+            var gen = Gjuton.of(TWO_FIELD_SCHEMA).withSeed(1L)
+                    .withProducerByName("role", () -> "first")
+                    .withProducerByName("role", () -> "second");
+
+            // then
+            assertThat(parse(gen.generate()).get("role").asText()).isEqualTo("second");
+        }
+
+        @Test
+        void withProducerByNameRejectsNullArguments() {
+            // then
+            assertThatThrownBy(() -> Gjuton.of(TWO_FIELD_SCHEMA).withProducerByName(null, () -> "x"))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> Gjuton.of(TWO_FIELD_SCHEMA).withProducerByName("role", null))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Nested
     class GenerateIntoType {
 
         private record Bean(int a) {

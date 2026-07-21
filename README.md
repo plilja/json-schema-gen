@@ -114,6 +114,16 @@ Gjuton gen = Gjuton.of(schema)
         .withProducer("$.email", faker.internet()::emailAddress);
 ```
 
+`withProducerByName(String propertyName, ValueProducer)` does the same thing but
+matches by property name instead of path — it fires at every position where that
+name appears, without enumerating every path. When both a path-based and a
+name-based producer match the same position, the path-based producer wins.
+
+```java
+Gjuton gen = Gjuton.of(schema)
+        .withProducerByName("customerId", () -> "cust-42");
+```
+
 ### Value constraints
 
 `withConstraints(Constraints)` narrows generated values beyond what the schema

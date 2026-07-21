@@ -3,9 +3,10 @@ package io.github.gjuton.api;
 /**
  * Supplies the value for a specific position in generated JSON, replacing
  * whatever the generator would otherwise produce there. Registered against a
- * path with {@link Gjuton#withProducer(String, ValueProducer)}
+ * path with {@link Gjuton#withProducer(String, ValueProducer)} or against a
+ * property name with {@link Gjuton#withProducerByName(String, ValueProducer)},
  * and invoked afresh on every {@link Gjuton#generate()} that
- * reaches that path, so it may return a different value each time.
+ * reaches a matching position, so it may return a different value each time.
  *
  * <p>The returned object may be anything that serialises to JSON — scalar,
  * {@code Collection}, {@code Map}, or bean. It is inserted as-is and is

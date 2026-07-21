@@ -139,20 +139,40 @@ public final class GeneratorContext {
      * Returns the caller's override for the position at the current path, or
      * {@code null} if no producer is registered there.
      *
+     * <p>Path-based producers are checked first; if none matches and the current
+     * position is an object property (not an array element or the root),
+     * name-based producers are checked against the property name.
+     *
      * <p>Within one run (see {@link #startRun}) a producer is consulted at most
-     * once per path: the first query at a path yields its value and every later
-     * query at that same path returns the same value, so a validate-and-retry
-     * parent that regenerates the subtree does not re-invoke it. The result,
-     * when present, is wrapped so downstream consumers can recognise it as
-     * caller-supplied.
+     * once per memoization key. Path-based producers are keyed by path, so
+     * retries at the same position see the same value. Name-based producers are
+     * keyed by property name, so every position with the same name shares one
+     * value per run — the property means the same thing wherever it appears.
      */
     Object currentOverride() {
         var path = currentPath.toString();
         var producer = config.producers().get(path);
-        if (producer == null) {
-            return null;
+        if (producer != null) {
+            return producedThisRun.computeIfAbsent(path, ignored -> new OverriddenValue(producer.get()));
         }
-        return producedThisRun.computeIfAbsent(path, ignored -> new OverriddenValue(producer.get()));
+
+        // The path string doesn't distinguish position kinds (object property vs
+        // array element vs root), so recover that from its shape: paths ending
+        // with ']' are array elements, paths with no '.' are the root — only the
+        // rest are object properties where name-based matching applies.
+        if (!config.nameProducers().isEmpty() && path.charAt(path.length() - 1) != ']') {
+            int lastDot = path.lastIndexOf('.');
+            if (lastDot >= 0) {
+                var propertyName = path.substring(lastDot + 1);
+                var nameProducer = config.nameProducers().get(propertyName);
+                if (nameProducer != null) {
+                    return producedThisRun.computeIfAbsent(
+                            propertyName, ignored -> new OverriddenValue(nameProducer.get()));
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

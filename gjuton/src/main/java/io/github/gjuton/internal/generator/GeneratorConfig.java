@@ -23,6 +23,10 @@ import java.util.function.Supplier;
  *                                      supplier at a path yields a ready
  *                                      value-tree node to place there instead
  *                                      of generating one
+ * @param nameProducers                 value overrides keyed by property name;
+ *                                      applied at every position whose property
+ *                                      name matches, unless a path-based
+ *                                      producer already covers that position
  * @param constraints                   caller-imposed bounds that narrow
  *                                      generated values beyond the schema
  */
@@ -32,6 +36,7 @@ public record GeneratorConfig(
         int refSoftDepth,
         int refHardDepth,
         Map<String, Supplier<Object>> producers,
+        Map<String, Supplier<Object>> nameProducers,
         ValueConstraints constraints) {
 
     /**
@@ -50,6 +55,7 @@ public record GeneratorConfig(
 
     public GeneratorConfig {
         producers = Map.copyOf(producers);
+        nameProducers = Map.copyOf(nameProducers);
     }
 
     /**
@@ -59,6 +65,6 @@ public record GeneratorConfig(
      */
     static GeneratorConfig defaults() {
         return new GeneratorConfig(
-                false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of(), ValueConstraints.forExhaustive());
+                false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of(), Map.of(), ValueConstraints.forExhaustive());
     }
 }
