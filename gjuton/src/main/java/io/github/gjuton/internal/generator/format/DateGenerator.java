@@ -2,14 +2,12 @@ package io.github.gjuton.internal.generator.format;
 
 import static io.github.gjuton.internal.generator.GenerationResult.result;
 import static io.github.gjuton.internal.generator.GenerationResult.skip;
-import static io.github.gjuton.internal.util.FunctionalUtil.coalesce;
 
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.generator.GenerationResult;
 import io.github.gjuton.internal.generator.GeneratorContext;
 import io.github.gjuton.internal.model.StringSchema;
 import io.github.gjuton.internal.util.DateUtil;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 
@@ -20,9 +18,6 @@ import java.time.ZoneOffset;
 public final class DateGenerator extends StringFormatGenerator<DateGenerator.DatePhase> {
 
     private static final int DATE_LENGTH = 10;
-
-    private static final Instant DEFAULT_MIN_INSTANT = Instant.parse("1900-01-01T00:00:00Z");
-    private static final Instant DEFAULT_MAX_INSTANT = Instant.parse("2099-12-31T23:59:59Z");
 
     protected enum DatePhase {
         LEAP_DAY, RANDOM
@@ -46,9 +41,8 @@ public final class DateGenerator extends StringFormatGenerator<DateGenerator.Dat
         }
         return switch (phase) {
             case LEAP_DAY -> {
-                var min = coalesce(context.constraints().dateMin(), DEFAULT_MIN_INSTANT);
-                var max = coalesce(context.constraints().dateMax(), DEFAULT_MAX_INSTANT);
-                var leapDay = DateUtil.leapDayInRange(min, max);
+                var leapDay = DateUtil.leapDayInRange(
+                        context.constraints().dateMin(), context.constraints().dateMax());
                 yield leapDay != null ? tryCandidate(leapDay.toString()) : skip();
             }
             case RANDOM -> result(randomWithRetry());
@@ -64,13 +58,11 @@ public final class DateGenerator extends StringFormatGenerator<DateGenerator.Dat
     }
 
     private LocalDate rangeMin() {
-        var min = coalesce(context.constraints().dateMin(), DEFAULT_MIN_INSTANT);
-        return LocalDate.ofInstant(min, ZoneOffset.UTC);
+        return LocalDate.ofInstant(context.constraints().dateMin(), ZoneOffset.UTC);
     }
 
     private LocalDate rangeMax() {
-        var max = coalesce(context.constraints().dateMax(), DEFAULT_MAX_INSTANT);
-        return LocalDate.ofInstant(max, ZoneOffset.UTC);
+        return LocalDate.ofInstant(context.constraints().dateMax(), ZoneOffset.UTC);
     }
 
 }

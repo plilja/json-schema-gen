@@ -2,7 +2,6 @@ package io.github.gjuton.internal.generator.format;
 
 import static io.github.gjuton.internal.generator.GenerationResult.result;
 import static io.github.gjuton.internal.generator.GenerationResult.skip;
-import static io.github.gjuton.internal.util.FunctionalUtil.coalesce;
 
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.generator.GenerationResult;
@@ -32,9 +31,6 @@ public final class DateTimeGenerator extends StringFormatGenerator<DateTimeGener
 
     // Force HH:mm:ss even when seconds==0 (RFC 3339 requires it; OffsetDateTime.toString drops it).
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
-
-    private static final Instant DEFAULT_MIN_INSTANT = Instant.parse("1900-01-01T00:00:00Z");
-    private static final Instant DEFAULT_MAX_INSTANT = Instant.parse("2099-12-31T23:59:59Z");
 
     protected enum DateTimePhase {
         Y2038, LEAP_DAY, MIDNIGHT, RANDOM
@@ -80,11 +76,11 @@ public final class DateTimeGenerator extends StringFormatGenerator<DateTimeGener
     }
 
     private Instant rangeMin() {
-        return coalesce(context.constraints().dateMin(), DEFAULT_MIN_INSTANT);
+        return context.constraints().dateMin();
     }
 
     private Instant rangeMax() {
-        return coalesce(context.constraints().dateMax(), DEFAULT_MAX_INSTANT);
+        return context.constraints().dateMax();
     }
 
     private boolean withinRange(Instant instant) {

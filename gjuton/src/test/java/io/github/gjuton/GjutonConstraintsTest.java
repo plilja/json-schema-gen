@@ -12,8 +12,10 @@ import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.Year;
 import java.time.ZoneOffset;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class GjutonConstraintsTest {
@@ -166,6 +168,118 @@ class GjutonConstraintsTest {
             assertThat(node).isEmpty();
         }
         assertThat(gen.valueCoverage()).isEqualTo(1.0);
+    }
+
+    @Nested
+    class ModeAwareDefaults {
+
+        @Test
+        void randomModeDatesFallWithinPreviousToNextYear() {
+            int thisYear = Year.now(ZoneOffset.UTC).getValue();
+            var gen = Gjuton.of("""
+                    { "type": "string", "format": "date" }""")
+                    .withSeed(1L);
+
+            // when
+            forEachValue(gen, node -> {
+                var date = LocalDate.parse(node.asText());
+                assertThat(date.getYear()).isBetween(thisYear - 1, thisYear + 1);
+            });
+        }
+
+        @Test
+        void randomModeDateTimesFallWithinPreviousToNextYear() {
+            int thisYear = Year.now(ZoneOffset.UTC).getValue();
+            var gen = Gjuton.of("""
+                    { "type": "string", "format": "date-time" }""")
+                    .withSeed(1L);
+
+            // when
+            forEachValue(gen, node -> {
+                var instant = OffsetDateTime.parse(node.asText()).toInstant();
+                var year = instant.atOffset(ZoneOffset.UTC).getYear();
+                assertThat(year).isBetween(thisYear - 1, thisYear + 1);
+            });
+        }
+
+        @Test
+        void exhaustiveModeDatesSpanWideRange() {
+            var gen = Gjuton.of("""
+                    { "type": "string", "format": "date" }""")
+                    .withGenerationMode(GenerationMode.EXHAUSTIVE)
+                    .withSeed(1L);
+
+            // when
+            boolean sawPre2000 = false;
+            boolean sawPost2050 = false;
+            for (int i = 0; i < SAMPLES; i++) {
+                var node = parse(gen.generate());
+                var date = LocalDate.parse(node.asText());
+                if (date.getYear() < 2000) {
+                    sawPre2000 = true;
+                }
+                if (date.getYear() > 2050) {
+                    sawPost2050 = true;
+                }
+            }
+
+            // then
+            assertThat(sawPre2000 || sawPost2050).isTrue();
+        }
+
+        @Test
+        void randomModeIntegersFallWithinDefaultRange() {
+            var gen = Gjuton.of("""
+                    { "type": "integer" }""")
+                    .withSeed(1L);
+
+            // when / then
+            forEachValue(gen, node ->
+                    assertThat(node.longValue()).isBetween(-1_000_000L, 1_000_000L));
+        }
+
+        @Test
+        void exhaustiveModeIntegersCanExceedRandomRange() {
+            var gen = Gjuton.of("""
+                    { "type": "integer" }""")
+                    .withGenerationMode(GenerationMode.EXHAUSTIVE)
+                    .withSeed(1L);
+
+            // when
+            boolean sawWide = false;
+            for (int i = 0; i < SAMPLES; i++) {
+                var node = parse(gen.generate());
+                if (Math.abs(node.longValue()) > 1_000_000) {
+                    sawWide = true;
+                }
+            }
+
+            // then
+            assertThat(sawWide).isTrue();
+        }
+
+        @Test
+        void randomModeNumbersFallWithinDefaultRange() {
+            var gen = Gjuton.of("""
+                    { "type": "number" }""")
+                    .withSeed(1L);
+
+            // when / then
+            forEachValue(gen, node ->
+                    assertThat(node.doubleValue()).isBetween(-1_000_000.0, 1_000_000.0));
+        }
+
+        @Test
+        void explicitConstraintsOverrideRandomModeDefaults() {
+            var gen = Gjuton.of("""
+                    { "type": "integer" }""")
+                    .withConstraints(Constraints.of().numberRange(-10, 10))
+                    .withSeed(1L);
+
+            // when / then
+            forEachValue(gen, node ->
+                    assertThat(node.longValue()).isBetween(-10L, 10L));
+        }
     }
 
     @Test

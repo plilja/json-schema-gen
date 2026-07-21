@@ -59,6 +59,6 @@ public record GeneratorConfig(
      */
     static GeneratorConfig defaults() {
         return new GeneratorConfig(
-                false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of(), ValueConstraints.none());
+                false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of(), ValueConstraints.forExhaustive());
     }
 }

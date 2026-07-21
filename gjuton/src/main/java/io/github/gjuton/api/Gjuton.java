@@ -1,5 +1,7 @@
 package io.github.gjuton.api;
 
+import static io.github.gjuton.internal.util.FunctionalUtil.coalesce;
+
 import io.github.gjuton.errors.JsonBindingException;
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.generator.GeneratorConfig;
@@ -74,7 +76,7 @@ public final class Gjuton {
                 refSoftDepth,
                 refHardDepth,
                 toValueSuppliers(producers),
-                toValueConstraints(constraints));
+                toValueConstraints(mode, constraints));
         this.generator = new JsonGenerator(seed, document, config);
     }
 
@@ -91,21 +93,24 @@ public final class Gjuton {
     }
 
     /**
-     * Adapts the public {@link Constraints} into the internal generator record.
-     * The generator layer cannot depend on the {@code api} package, so it
-     * carries the bounds as a plain record of JDK-typed values.
+     * Overlays the caller's {@link Constraints} onto the mode-appropriate
+     * defaults. Each non-null constraint field replaces the corresponding
+     * default; unset fields keep the mode default.
      */
-    private static ValueConstraints toValueConstraints(Constraints constraints) {
+    private static ValueConstraints toValueConstraints(GenerationMode mode, Constraints c) {
+        var base = mode == GenerationMode.RANDOM
+                ? ValueConstraints.forRandom()
+                : ValueConstraints.forExhaustive();
         return new ValueConstraints(
-                constraints.stringMinLength,
-                constraints.stringMaxLength,
-                constraints.numberMin,
-                constraints.numberMax,
-                constraints.dateMin,
-                constraints.dateMax,
-                constraints.alphabet,
-                constraints.arrayMinLength,
-                constraints.arrayMaxLength);
+                coalesce(c.stringMinLength, base.stringMinLength()),
+                coalesce(c.stringMaxLength, base.stringMaxLength()),
+                coalesce(c.numberMin, base.numberMin()),
+                coalesce(c.numberMax, base.numberMax()),
+                coalesce(c.dateMin, base.dateMin()),
+                coalesce(c.dateMax, base.dateMax()),
+                coalesce(c.alphabet, base.alphabet()),
+                coalesce(c.arrayMinLength, base.arrayMinLength()),
+                coalesce(c.arrayMaxLength, base.arrayMaxLength()));
     }
 
     /**

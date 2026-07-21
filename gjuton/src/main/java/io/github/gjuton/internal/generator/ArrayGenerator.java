@@ -7,7 +7,6 @@ import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.model.ArraySchema;
 import io.github.gjuton.internal.model.NullSchema;
 import io.github.gjuton.internal.model.Schema;
-import io.github.gjuton.internal.util.MathUtil;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -105,12 +104,8 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
      */
     private int effectiveMinLength() {
         int minLength = coalesce(schema.getMinItems(), 0);
-        Integer constraintMin = context.constraints().arrayMinLength();
-        if (constraintMin != null) {
-            minLength = Math.max(minLength, constraintMin);
-        }
+        minLength = Math.max(minLength, context.constraints().arrayMinLength());
         if (schema.getContains() != null) {
-            // Need at least one item to satisfy contains even when minItems is smaller.
             minLength = Math.max(minLength, 1);
         }
         return minLength;
@@ -124,9 +119,11 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
      */
     private int effectiveMaxLength() {
         Integer schemaMax = schema.getMaxItems();
-        Integer constraintMax = context.constraints().arrayMaxLength();
-        Integer upperBound = MathUtil.minNullable(schemaMax, constraintMax);
-        int maxLength = upperBound != null ? upperBound : effectiveMinLength() + DEFAULT_LENGTH_BUFFER;
+        int constraintMax = context.constraints().arrayMaxLength();
+        int upperBound = schemaMax != null ? Math.min(schemaMax, constraintMax) : constraintMax;
+        int maxLength = upperBound == Integer.MAX_VALUE
+                ? effectiveMinLength() + DEFAULT_LENGTH_BUFFER
+                : upperBound;
         if (!additionalItemsAllowed) {
             maxLength = Math.min(maxLength, prefixSchemas.size());
         }

@@ -9,7 +9,6 @@ import com.github.curiousoddman.rgxgen.config.RgxGenOption;
 import com.github.curiousoddman.rgxgen.config.RgxGenProperties;
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.model.StringSchema;
-import io.github.gjuton.internal.util.MathUtil;
 import io.github.gjuton.internal.util.RandomUtil;
 
 /**
@@ -39,9 +38,8 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
         return GenerationPhase.RANDOM;
     }
 
-    private static RgxGen buildRgxGen(StringSchema schema, Integer maxLength) {
-        // Cap unbounded quantifier expansion at maxLength so most generations land within bounds.
-        if (maxLength == null) {
+    private static RgxGen buildRgxGen(StringSchema schema, int maxLength) {
+        if (maxLength == Integer.MAX_VALUE) {
             return RgxGen.parse(schema.getPattern());
         }
         var properties = new RgxGenProperties();
@@ -52,8 +50,8 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     @Override
     protected GenerationResult<String> generatePhase(GenerationPhase phase) {
         int minLength = effectiveMinLength();
-        Integer maxLength = effectiveMaxLength();
-        if (maxLength != null && minLength > maxLength) {
+        int maxLength = effectiveMaxLength();
+        if (minLength > maxLength) {
             throw new UnsatisfiableSchemaException(
                     "String length bounds are empty after applying constraints: effective minimum " + minLength
                             + " exceeds effective maximum " + maxLength);
@@ -76,17 +74,13 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
 
     private int effectiveMinLength() {
         int schemaMin = coalesce(schema.getMinLength(), 0);
-        Integer constraintMin = context.constraints().stringMinLength();
-        return constraintMin != null ? Math.max(schemaMin, constraintMin) : schemaMin;
+        return Math.max(schemaMin, context.constraints().stringMinLength());
     }
 
-    /**
-     * The tightest upper length bound, or {@code null} when neither schema nor constraints cap it.
-     */
-    private Integer effectiveMaxLength() {
+    private int effectiveMaxLength() {
         Integer schemaMax = schema.getMaxLength();
-        Integer constraintMax = context.constraints().stringMaxLength();
-        return MathUtil.minNullable(schemaMax, constraintMax);
+        int constraintMax = context.constraints().stringMaxLength();
+        return schemaMax != null ? Math.min(schemaMax, constraintMax) : constraintMax;
     }
 
     private boolean hasLowerLengthBound() {
@@ -98,7 +92,7 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     }
 
     private String alphabet() {
-        return coalesce(context.constraints().alphabet(), RandomUtil.ENGLISH_ALPHABET);
+        return context.constraints().alphabet();
     }
 
     private GenerationResult<String> generateFromPatternWithLength(int targetLength) {
@@ -113,7 +107,7 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
 
     private String generateFromPattern() {
         int min = effectiveMinLength();
-        int max = coalesce(effectiveMaxLength(), Integer.MAX_VALUE);
+        int max = effectiveMaxLength();
         for (int attempt = 0; attempt < PATTERN_RETRY_BUDGET; attempt++) {
             var candidate = rgxGen.generate(context.random());
             if (candidate.length() >= min && candidate.length() <= max) {
@@ -127,7 +121,7 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
 
     private String randomString() {
         int min = effectiveMinLength();
-        int max = coalesce(effectiveMaxLength(), min + 20);
+        int max = Math.min(min + 20, effectiveMaxLength());
         int length = min == max ? min : context.random().nextInt(min, max + 1);
         return RandomUtil.randomStringOfLength(alphabet(), length, context.random());
     }
