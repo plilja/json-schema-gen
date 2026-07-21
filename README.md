@@ -114,6 +114,35 @@ Gjuton gen = Gjuton.of(schema)
         .withProducer("$.email", faker.internet()::emailAddress);
 ```
 
+### Value constraints
+
+`withConstraints(Constraints)` narrows generated values beyond what the schema
+requires, so you can pin fixtures to a realistic or bounded shape without editing
+the schema. Build a `Constraints` from `Constraints.of()` and set only the kinds
+you care about; every kind left unset keeps its schema-driven behavior. A bound
+may be one-sided — pass `null` for the side to leave open. The exception is
+`dateRange`, which requires both bounds.
+
+Each bound only ever tightens: at every position the effective range is the
+intersection of the schema's own constraint and the matching bound, so a bound
+looser than the schema has no effect and one stricter replaces it. A position
+whose intersection admits no value fails generation with
+`UnsatisfiableSchemaException`.
+
+```java
+Gjuton gen = Gjuton.of(schema).withConstraints(Constraints.of()
+        .stringLength(1, 40)                                       // string length
+        .numberRange(0, 1000)                                      // integers and numbers
+        .dateRange(Instant.parse("2000-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z")) // date / date-time
+        .alphabet("abcdefghijklmnopqrstuvwxyz")                    // characters strings may use
+        .arrayLength(0, 5));                                       // array length
+```
+
+Strings with a recognized `format` (such as `email` or `uri`) are produced by
+that format's generator, which owns their shape — `stringLength` and `alphabet`
+do not apply to them. `alphabet` is also ignored for strings whose schema
+carries a `pattern` (the pattern governs those).
+
 ### Additional properties
 
 `withAdditionalProperties()` adds random extra properties to generated objects

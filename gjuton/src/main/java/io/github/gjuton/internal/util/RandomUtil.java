@@ -17,10 +17,15 @@ public final class RandomUtil {
         return randomStringOfLength(ENGLISH_ALPHABET, length, random);
     }
 
+    /**
+     * A random string of {@code length} characters, each independently chosen
+     * from {@code alphabet}.
+     */
     public static String randomStringOfLength(String alphabet, int length, Random random) {
-        var sb = new StringBuilder(length);
+        var codePoints = alphabet.codePoints().toArray();
+        var sb = new StringBuilder();
         for (int i = 0; i < length; i++) {
-            sb.append(alphabet.charAt(random.nextInt(alphabet.length())));
+            sb.appendCodePoint(codePoints[random.nextInt(codePoints.length)]);
         }
         return sb.toString();
     }

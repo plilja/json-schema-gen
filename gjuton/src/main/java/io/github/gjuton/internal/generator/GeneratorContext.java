@@ -17,7 +17,9 @@ import java.util.Random;
  */
 public final class GeneratorContext {
 
-    /** The parsed document, used to look up {@code $ref} targets. */
+    /**
+     * The parsed document, used to look up {@code $ref} targets.
+     */
     private final SchemaDocument document;
 
     private final Random random;
@@ -69,6 +71,14 @@ public final class GeneratorContext {
 
     public Random random() {
         return random;
+    }
+
+    /**
+     * The caller-imposed bounds narrowing generated values; every kind is unset
+     * when the caller registered no constraints.
+     */
+    public ValueConstraints constraints() {
+        return config.constraints();
     }
 
     boolean isRandomOnly() {

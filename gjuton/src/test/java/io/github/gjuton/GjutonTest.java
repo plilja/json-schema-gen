@@ -9,6 +9,10 @@ import io.github.gjuton.api.GenerationMode;
 import io.github.gjuton.api.Gjuton;
 import io.github.gjuton.errors.JsonBindingException;
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
+import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -136,6 +140,25 @@ class GjutonTest {
         // then
         assertThatThrownBy(() -> Gjuton.of(INT_SCHEMA).withGenerationMode(null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void factoriesRejectNullSchema() {
+        // then
+        assertThatThrownBy(() -> Gjuton.of((String) null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Gjuton.of((File) null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Gjuton.of((InputStream) null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void generateToTargetRejectsNull() {
+        // when
+        var gen = Gjuton.of(INT_SCHEMA);
+
+        // then
+        assertThatThrownBy(() -> gen.generate((OutputStream) null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gen.generate((Writer) null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gen.generate((File) null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

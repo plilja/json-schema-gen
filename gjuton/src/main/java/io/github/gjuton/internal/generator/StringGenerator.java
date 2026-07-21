@@ -9,6 +9,7 @@ import com.github.curiousoddman.rgxgen.config.RgxGenOption;
 import com.github.curiousoddman.rgxgen.config.RgxGenProperties;
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.model.StringSchema;
+import io.github.gjuton.internal.util.MathUtil;
 import io.github.gjuton.internal.util.RandomUtil;
 
 /**
@@ -30,7 +31,7 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     StringGenerator(GeneratorContext context, StringSchema schema) {
         super(GenerationPhase.class, context);
         this.schema = schema;
-        this.rgxGen = schema.getPattern() != null ? buildRgxGen(schema) : null;
+        this.rgxGen = schema.getPattern() != null ? buildRgxGen(schema, effectiveMaxLength()) : null;
     }
 
     @Override
@@ -38,38 +39,66 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
         return GenerationPhase.RANDOM;
     }
 
-    private static RgxGen buildRgxGen(StringSchema schema) {
+    private static RgxGen buildRgxGen(StringSchema schema, Integer maxLength) {
         // Cap unbounded quantifier expansion at maxLength so most generations land within bounds.
-        if (schema.getMaxLength() == null) {
+        if (maxLength == null) {
             return RgxGen.parse(schema.getPattern());
         }
         var properties = new RgxGenProperties();
-        RgxGenOption.INFINITE_PATTERN_REPETITION.setInProperties(properties, schema.getMaxLength());
+        RgxGenOption.INFINITE_PATTERN_REPETITION.setInProperties(properties, maxLength);
         return RgxGen.parse(properties, schema.getPattern());
     }
 
     @Override
     protected GenerationResult<String> generatePhase(GenerationPhase phase) {
+        int minLength = effectiveMinLength();
+        Integer maxLength = effectiveMaxLength();
+        if (maxLength != null && minLength > maxLength) {
+            throw new UnsatisfiableSchemaException(
+                    "String length bounds are empty after applying constraints: effective minimum " + minLength
+                            + " exceeds effective maximum " + maxLength);
+        }
         if (rgxGen != null) {
             return switch (phase) {
-                case MIN_LENGTH -> schema.getMinLength() != null ? generateFromPatternWithLength(schema.getMinLength()) : skip();
-                case MAX_LENGTH -> schema.getMaxLength() != null ? generateFromPatternWithLength(schema.getMaxLength()) : skip();
-                case EMPTY -> {
-                    int min = coalesce(schema.getMinLength(), 0);
-                    yield min == 0 ? generateFromPatternWithLength(0) : skip();
-                }
+                case MIN_LENGTH -> hasLowerLengthBound() ? generateFromPatternWithLength(minLength) : skip();
+                case MAX_LENGTH -> hasUpperLengthBound() ? generateFromPatternWithLength(maxLength) : skip();
+                case EMPTY -> minLength == 0 ? generateFromPatternWithLength(0) : skip();
                 case RANDOM -> result(generateFromPattern());
             };
         }
         return switch (phase) {
-            case MIN_LENGTH -> schema.getMinLength() != null ? result(RandomUtil.randomStringOfLength(schema.getMinLength(), context.random())) : skip();
-            case MAX_LENGTH -> schema.getMaxLength() != null ? result(RandomUtil.randomStringOfLength(schema.getMaxLength(), context.random())) : skip();
-            case EMPTY -> {
-                int min = coalesce(schema.getMinLength(), 0);
-                yield min == 0 ? result("") : skip();
-            }
+            case MIN_LENGTH -> hasLowerLengthBound() ? result(RandomUtil.randomStringOfLength(alphabet(), minLength, context.random())) : skip();
+            case MAX_LENGTH -> hasUpperLengthBound() ? result(RandomUtil.randomStringOfLength(alphabet(), maxLength, context.random())) : skip();
+            case EMPTY -> minLength == 0 ? result("") : skip();
             case RANDOM -> result(randomString());
         };
+    }
+
+    private int effectiveMinLength() {
+        int schemaMin = coalesce(schema.getMinLength(), 0);
+        Integer constraintMin = context.constraints().stringMinLength();
+        return constraintMin != null ? Math.max(schemaMin, constraintMin) : schemaMin;
+    }
+
+    /**
+     * The tightest upper length bound, or {@code null} when neither schema nor constraints cap it.
+     */
+    private Integer effectiveMaxLength() {
+        Integer schemaMax = schema.getMaxLength();
+        Integer constraintMax = context.constraints().stringMaxLength();
+        return MathUtil.minNullable(schemaMax, constraintMax);
+    }
+
+    private boolean hasLowerLengthBound() {
+        return schema.getMinLength() != null;
+    }
+
+    private boolean hasUpperLengthBound() {
+        return schema.getMaxLength() != null;
+    }
+
+    private String alphabet() {
+        return coalesce(context.constraints().alphabet(), RandomUtil.ENGLISH_ALPHABET);
     }
 
     private GenerationResult<String> generateFromPatternWithLength(int targetLength) {
@@ -83,8 +112,8 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     }
 
     private String generateFromPattern() {
-        int min = coalesce(schema.getMinLength(), 0);
-        int max = coalesce(schema.getMaxLength(), Integer.MAX_VALUE);
+        int min = effectiveMinLength();
+        int max = coalesce(effectiveMaxLength(), Integer.MAX_VALUE);
         for (int attempt = 0; attempt < PATTERN_RETRY_BUDGET; attempt++) {
             var candidate = rgxGen.generate(context.random());
             if (candidate.length() >= min && candidate.length() <= max) {
@@ -97,9 +126,9 @@ final class StringGenerator extends PhaseGenerator<StringGenerator.GenerationPha
     }
 
     private String randomString() {
-        int min = coalesce(schema.getMinLength(), 0);
-        int max = coalesce(schema.getMaxLength(), min + 20);
+        int min = effectiveMinLength();
+        int max = coalesce(effectiveMaxLength(), min + 20);
         int length = min == max ? min : context.random().nextInt(min, max + 1);
-        return RandomUtil.randomStringOfLength(length, context.random());
+        return RandomUtil.randomStringOfLength(alphabet(), length, context.random());
     }
 }

@@ -16,8 +16,6 @@ class DateGeneratorTest {
 
     @Test
     void firstResultIsLeapDay() {
-        // 2024-02-29 is a real-world boundary that exposes classic leap-year
-        // bugs in date arithmetic; emitting it first guarantees coverage.
         var schema = StringSchema.builder().format(StringFormat.DATE).build();
         var generator = new DateGenerator(withSeed(42), schema);
 
@@ -25,7 +23,9 @@ class DateGeneratorTest {
         var first = generator.generate();
 
         // then
-        assertThat(first).isEqualTo("2024-02-29");
+        var date = LocalDate.parse(first);
+        assertThat(date.getMonthValue()).isEqualTo(2);
+        assertThat(date.getDayOfMonth()).isEqualTo(29);
     }
 
     @Test
@@ -87,7 +87,9 @@ class DateGeneratorTest {
         var result = generator.generate();
 
         // then
-        assertThat(result).isEqualTo("2024-02-29");
+        var date = LocalDate.parse(result);
+        assertThat(date.getMonthValue()).isEqualTo(2);
+        assertThat(date.getDayOfMonth()).isEqualTo(29);
     }
 
     @Test

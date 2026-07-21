@@ -23,13 +23,16 @@ import java.util.function.Supplier;
  *                                      supplier at a path yields a ready
  *                                      value-tree node to place there instead
  *                                      of generating one
+ * @param constraints                   caller-imposed bounds that narrow
+ *                                      generated values beyond the schema
  */
 public record GeneratorConfig(
         boolean randomOnly,
         boolean generateAdditionalProperties,
         int refSoftDepth,
         int refHardDepth,
-        Map<String, Supplier<Object>> producers) {
+        Map<String, Supplier<Object>> producers,
+        ValueConstraints constraints) {
 
     /**
      * The {@code $ref} expansion ceilings for the three presets, and the single
@@ -55,6 +58,7 @@ public record GeneratorConfig(
      * overrides, and the default {@code $ref} depth limits.
      */
     static GeneratorConfig defaults() {
-        return new GeneratorConfig(false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of());
+        return new GeneratorConfig(
+                false, false, DEFAULT_REF_SOFT_DEPTH, DEFAULT_REF_HARD_DEPTH, Map.of(), ValueConstraints.none());
     }
 }

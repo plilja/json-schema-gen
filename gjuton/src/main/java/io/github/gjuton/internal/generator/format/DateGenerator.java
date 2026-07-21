@@ -1,12 +1,17 @@
 package io.github.gjuton.internal.generator.format;
 
 import static io.github.gjuton.internal.generator.GenerationResult.result;
+import static io.github.gjuton.internal.generator.GenerationResult.skip;
+import static io.github.gjuton.internal.util.FunctionalUtil.coalesce;
 
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.generator.GenerationResult;
 import io.github.gjuton.internal.generator.GeneratorContext;
 import io.github.gjuton.internal.model.StringSchema;
+import io.github.gjuton.internal.util.DateUtil;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 /**
  * Generates RFC 3339 {@code full-date} strings ({@code YYYY-MM-DD}) for
@@ -15,8 +20,9 @@ import java.time.LocalDate;
 public final class DateGenerator extends StringFormatGenerator<DateGenerator.DatePhase> {
 
     private static final int DATE_LENGTH = 10;
-    private static final long MIN_EPOCH_DAY = LocalDate.of(1900, 1, 1).toEpochDay();
-    private static final long MAX_EPOCH_DAY = LocalDate.of(2099, 12, 31).toEpochDay();
+
+    private static final Instant DEFAULT_MIN_INSTANT = Instant.parse("1900-01-01T00:00:00Z");
+    private static final Instant DEFAULT_MAX_INSTANT = Instant.parse("2099-12-31T23:59:59Z");
 
     protected enum DatePhase {
         LEAP_DAY, RANDOM
@@ -39,14 +45,32 @@ public final class DateGenerator extends StringFormatGenerator<DateGenerator.Dat
                     "RFC 3339 dates are fixed at " + DATE_LENGTH + " characters; schema length bounds exclude that");
         }
         return switch (phase) {
-            case LEAP_DAY -> tryCandidate("2024-02-29");
+            case LEAP_DAY -> {
+                var min = coalesce(context.constraints().dateMin(), DEFAULT_MIN_INSTANT);
+                var max = coalesce(context.constraints().dateMax(), DEFAULT_MAX_INSTANT);
+                var leapDay = DateUtil.leapDayInRange(min, max);
+                yield leapDay != null ? tryCandidate(leapDay.toString()) : skip();
+            }
             case RANDOM -> result(randomWithRetry());
         };
     }
 
     @Override
     protected String generateCandidate() {
-        long epochDay = context.random().nextLong(MIN_EPOCH_DAY, MAX_EPOCH_DAY + 1);
+        long minEpochDay = rangeMin().toEpochDay();
+        long maxEpochDay = rangeMax().toEpochDay();
+        long epochDay = context.random().nextLong(minEpochDay, maxEpochDay + 1);
         return LocalDate.ofEpochDay(epochDay).toString();
     }
+
+    private LocalDate rangeMin() {
+        var min = coalesce(context.constraints().dateMin(), DEFAULT_MIN_INSTANT);
+        return LocalDate.ofInstant(min, ZoneOffset.UTC);
+    }
+
+    private LocalDate rangeMax() {
+        var max = coalesce(context.constraints().dateMax(), DEFAULT_MAX_INSTANT);
+        return LocalDate.ofInstant(max, ZoneOffset.UTC);
+    }
+
 }

@@ -7,6 +7,7 @@ import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.model.ArraySchema;
 import io.github.gjuton.internal.model.NullSchema;
 import io.github.gjuton.internal.model.Schema;
+import io.github.gjuton.internal.util.MathUtil;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -58,14 +59,15 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
     /**
      * The element schemas the array can actually place, using the same schema
      * instances as generation: reachable tuple-prefix positions, the item schema
-     * when there is room past the prefix, and the {@code contains} schema. Empty
-     * when {@code maxItems} leaves no room, so unreachable element schemas do not
-     * inflate the coverage denominator.
+     * when there is room past the prefix, and the {@code contains} schema. Bounded
+     * by the effective maximum length, so an element schema that a length bound —
+     * from the schema or a caller constraint — leaves no room for does not inflate
+     * the coverage denominator.
      */
     @Override
     public List<Schema> structuralChildren() {
         var children = new ArrayList<Schema>();
-        int maxItems = coalesce(schema.getMaxItems(), Integer.MAX_VALUE);
+        int maxItems = effectiveMaxLength();
         for (int i = 0; i < prefixSchemas.size() && i < maxItems; i++) {
             children.add(prefixSchemas.get(i));
         }
@@ -80,29 +82,55 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
 
     @Override
     protected GenerationResult<List<Object>> generatePhase(GenerationPhase phase) {
-        int minLength = coalesce(schema.getMinItems(), 0);
-        if (schema.getContains() != null) {
-            // We need at least 1 item to satisfy the contains even if minItems was smaller
-            minLength = Math.max(minLength, 1);
-        }
-        int effectiveMax = coalesce(schema.getMaxItems(), minLength + DEFAULT_LENGTH_BUFFER);
-        if (!additionalItemsAllowed) {
-            // additionalItems: false — nothing is allowed past the tuple prefix
-            effectiveMax = Math.min(effectiveMax, prefixSchemas.size());
-        }
+        int minLength = effectiveMinLength();
+        int effectiveMax = effectiveMaxLength();
         if (effectiveMax < minLength) {
             throw new UnsatisfiableSchemaException(
                     "No valid array length satisfies minItems/maxItems/contains together: effective minimum length "
                             + minLength + " exceeds effective maximum length " + effectiveMax);
         }
-        return switch (phase) {
-            case MIN_LENGTH -> result(buildList(minLength));
-            case MAX_LENGTH -> result(buildList(effectiveMax));
-            case RANDOM -> {
-                var length = minLength + context.random().nextInt(effectiveMax - minLength + 1);
-                yield result(buildList(length));
-            }
+        int length = switch (phase) {
+            case MIN_LENGTH -> minLength;
+            case MAX_LENGTH -> effectiveMax;
+            case RANDOM -> minLength + context.random().nextInt(effectiveMax - minLength + 1);
         };
+        var value = buildList(length);
+        return result(value);
+    }
+
+    /**
+     * The smallest array length that satisfies the schema and caller constraints
+     * together: {@code minItems} raised to the caller's minimum and to at least one
+     * when a {@code contains} schema demands an element.
+     */
+    private int effectiveMinLength() {
+        int minLength = coalesce(schema.getMinItems(), 0);
+        Integer constraintMin = context.constraints().arrayMinLength();
+        if (constraintMin != null) {
+            minLength = Math.max(minLength, constraintMin);
+        }
+        if (schema.getContains() != null) {
+            // Need at least one item to satisfy contains even when minItems is smaller.
+            minLength = Math.max(minLength, 1);
+        }
+        return minLength;
+    }
+
+    /**
+     * The largest array length this generator produces: the tighter of the schema's
+     * {@code maxItems} and the caller's maximum, or a fixed span past the minimum
+     * when neither bounds it above, capped at the tuple prefix when
+     * {@code additionalItems} is false.
+     */
+    private int effectiveMaxLength() {
+        Integer schemaMax = schema.getMaxItems();
+        Integer constraintMax = context.constraints().arrayMaxLength();
+        Integer upperBound = MathUtil.minNullable(schemaMax, constraintMax);
+        int maxLength = upperBound != null ? upperBound : effectiveMinLength() + DEFAULT_LENGTH_BUFFER;
+        if (!additionalItemsAllowed) {
+            maxLength = Math.min(maxLength, prefixSchemas.size());
+        }
+        return maxLength;
     }
 
     private List<Object> buildList(int length) {

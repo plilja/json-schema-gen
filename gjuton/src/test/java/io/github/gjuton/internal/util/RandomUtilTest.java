@@ -84,6 +84,19 @@ class RandomUtilTest {
         }
 
         @Test
+        void drawsWholeCodePointsFromSupplementaryPlaneAlphabet() {
+            // when
+            var result = RandomUtil.randomStringOfLength("😀🎉", 10, new Random(42));
+
+            // then: whole emoji only — never a lone surrogate — and length counts code points
+            var codePoints = result.codePoints().toArray();
+            int grinning = "😀".codePointAt(0);
+            int party = "🎉".codePointAt(0);
+            assertThat(codePoints).hasSize(10);
+            assertThat(codePoints).containsOnly(grinning, party);
+        }
+
+        @Test
         void usesProvidedRandom() {
             // when
             var first = RandomUtil.randomStringOfLength(20, new Random(1));

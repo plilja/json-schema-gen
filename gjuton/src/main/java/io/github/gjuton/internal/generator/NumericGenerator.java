@@ -80,6 +80,18 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
     }
 
     private BigDecimal effectiveMin() {
+        var schemaMin = schemaMin();
+        var constraintMin = context.constraints().numberMin();
+        return MathUtil.maxNullable(schemaMin, constraintMin);
+    }
+
+    private BigDecimal effectiveMax() {
+        var schemaMax = schemaMax();
+        var constraintMax = context.constraints().numberMax();
+        return MathUtil.minNullable(schemaMax, constraintMax);
+    }
+
+    private BigDecimal schemaMin() {
         var min = schema.getMinimum();
         var exMin = schema.getExclusiveMinimum();
         if (min != null && exMin != null) {
@@ -96,7 +108,7 @@ final class NumericGenerator extends PhaseGenerator<NumericGenerator.GenerationP
         return hasMultipleOf() ? NEG_MAX_SAFE_INTEGER : BigDecimal.valueOf(-Double.MAX_VALUE);
     }
 
-    private BigDecimal effectiveMax() {
+    private BigDecimal schemaMax() {
         var max = schema.getMaximum();
         var exMax = schema.getExclusiveMaximum();
         if (max != null && exMax != null) {

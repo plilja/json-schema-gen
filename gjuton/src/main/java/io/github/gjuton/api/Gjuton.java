@@ -4,6 +4,7 @@ import io.github.gjuton.errors.JsonBindingException;
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.generator.GeneratorConfig;
 import io.github.gjuton.internal.generator.JsonGenerator;
+import io.github.gjuton.internal.generator.ValueConstraints;
 import io.github.gjuton.internal.model.SchemaDocument;
 import io.github.gjuton.internal.parser.JsonSerializer;
 import io.github.gjuton.internal.parser.SchemaParser;
@@ -44,6 +45,7 @@ public final class Gjuton {
     private final boolean generateAdditionalProperties;
     private final int refSoftDepth;
     private final int refHardDepth;
+    private final Constraints constraints;
     private final JsonGenerator generator;
     private final SchemaDocument document;
 
@@ -55,7 +57,8 @@ public final class Gjuton {
             GenerationMode mode,
             boolean generateAdditionalProperties,
             int refSoftDepth,
-            int refHardDepth) {
+            int refHardDepth,
+            Constraints constraints) {
         this.schema = schema;
         this.document = document;
         this.seed = seed;
@@ -64,12 +67,14 @@ public final class Gjuton {
         this.generateAdditionalProperties = generateAdditionalProperties;
         this.refSoftDepth = refSoftDepth;
         this.refHardDepth = refHardDepth;
+        this.constraints = constraints;
         var config = new GeneratorConfig(
                 mode == GenerationMode.RANDOM,
                 generateAdditionalProperties,
                 refSoftDepth,
                 refHardDepth,
-                toValueSuppliers(producers));
+                toValueSuppliers(producers),
+                toValueConstraints(constraints));
         this.generator = new JsonGenerator(seed, document, config);
     }
 
@@ -86,6 +91,24 @@ public final class Gjuton {
     }
 
     /**
+     * Adapts the public {@link Constraints} into the internal generator record.
+     * The generator layer cannot depend on the {@code api} package, so it
+     * carries the bounds as a plain record of JDK-typed values.
+     */
+    private static ValueConstraints toValueConstraints(Constraints constraints) {
+        return new ValueConstraints(
+                constraints.stringMinLength,
+                constraints.stringMaxLength,
+                constraints.numberMin,
+                constraints.numberMax,
+                constraints.dateMin,
+                constraints.dateMax,
+                constraints.alphabet,
+                constraints.arrayMinLength,
+                constraints.arrayMaxLength);
+    }
+
+    /**
      * Creates a generator for the given JSON Schema string.
      *
      * @param schema a JSON Schema document as a UTF-8 string
@@ -97,7 +120,8 @@ public final class Gjuton {
         var document = SchemaParser.parse(schema);
         return new Gjuton(
                 schema, document, null, Collections.emptyMap(),
-                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
+                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH,
+                Constraints.of());
     }
 
     /**
@@ -109,11 +133,15 @@ public final class Gjuton {
      * @param schema file containing a JSON Schema document in UTF-8 encoding
      */
     public static Gjuton of(File schema) throws IOException {
+        if (schema == null) {
+            throw new IllegalArgumentException("schema must not be null");
+        }
         var schemaString = Files.readString(schema.toPath());
         var document = SchemaParser.parse(schema.toPath().toAbsolutePath());
         return new Gjuton(
                 schemaString, document, null, Collections.emptyMap(),
-                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH);
+                GenerationMode.RANDOM, false, GeneratorConfig.DEFAULT_REF_SOFT_DEPTH, GeneratorConfig.DEFAULT_REF_HARD_DEPTH,
+                Constraints.of());
     }
 
     /**
@@ -123,6 +151,9 @@ public final class Gjuton {
      * @param schema stream containing a JSON Schema document in UTF-8 encoding
      */
     public static Gjuton of(InputStream schema) throws IOException {
+        if (schema == null) {
+            throw new IllegalArgumentException("schema must not be null");
+        }
         return of(new String(schema.readAllBytes(), StandardCharsets.UTF_8));
     }
 
@@ -135,7 +166,7 @@ public final class Gjuton {
      */
     public Gjuton withSeed(long seed) {
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
     }
 
     /**
@@ -177,7 +208,7 @@ public final class Gjuton {
         merged.put(jsonPath, producer);
         return new Gjuton(
                 schema, document, seed, Collections.unmodifiableMap(merged),
-                mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+                mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
     }
 
     /**
@@ -192,7 +223,7 @@ public final class Gjuton {
             throw new IllegalArgumentException("mode must not be null");
         }
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth);
+                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
     }
 
     /**
@@ -203,7 +234,7 @@ public final class Gjuton {
      */
     public Gjuton withAdditionalProperties() {
         return new Gjuton(
-                schema, document, seed, producers, mode, true, refSoftDepth, refHardDepth);
+                schema, document, seed, producers, mode, true, refSoftDepth, refHardDepth, constraints);
     }
 
     /**
@@ -248,7 +279,38 @@ public final class Gjuton {
                     "soft limit (" + soft + ") must not exceed hard limit (" + hard + ")");
         }
         return new Gjuton(
-                schema, document, seed, producers, mode, generateAdditionalProperties, soft, hard);
+                schema, document, seed, producers, mode, generateAdditionalProperties, soft, hard, constraints);
+    }
+
+    /**
+     * Returns a new generator that narrows generated values to {@code constraints},
+     * on top of each schema node's own constraints, overriding any set by a
+     * previous call (last call wins). Every value kind left unset in
+     * {@code constraints} keeps its schema-driven behaviour.
+     *
+     * <p>A bound only ever tightens: at each position the effective range is the
+     * intersection of the schema's constraint and the matching bound, so a bound
+     * looser than the schema has no effect and one stricter replaces it. A
+     * position whose intersection admits no value fails generation with
+     * {@link UnsatisfiableSchemaException}, like any over-constrained schema.
+     *
+     * <pre>{@code
+     * String json = Gjuton.of(schema)
+     *         .withConstraints(Constraints.of()
+     *                 .stringLength(1, 40)
+     *                 .dateRange(Instant.parse("2000-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z")))
+     *         .generate();
+     * }</pre>
+     *
+     * @param constraints the bounds to impose across the whole document
+     * @see Constraints
+     */
+    public Gjuton withConstraints(Constraints constraints) {
+        if (constraints == null) {
+            throw new IllegalArgumentException("constraints must not be null");
+        }
+        return new Gjuton(
+                schema, document, seed, producers, mode, generateAdditionalProperties, refSoftDepth, refHardDepth, constraints);
     }
 
     /**
@@ -289,6 +351,9 @@ public final class Gjuton {
      * The stream is not closed.
      */
     public void generate(OutputStream out) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("out must not be null");
+        }
         out.write(generate().getBytes(StandardCharsets.UTF_8));
     }
 
@@ -297,6 +362,9 @@ public final class Gjuton {
      * The writer is not closed.
      */
     public void generate(Writer out) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("out must not be null");
+        }
         out.write(generate());
     }
 
@@ -305,6 +373,9 @@ public final class Gjuton {
      * The file is created if it does not exist and truncated if it does.
      */
     public void generate(File out) throws IOException {
+        if (out == null) {
+            throw new IllegalArgumentException("out must not be null");
+        }
         Files.writeString(out.toPath(), generate());
     }
 

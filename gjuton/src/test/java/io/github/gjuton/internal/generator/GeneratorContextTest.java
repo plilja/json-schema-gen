@@ -54,7 +54,7 @@ class GeneratorContextTest {
     }
 
     private static GeneratorContext contextWithProducer(String path, Supplier<Object> producer) {
-        var config = new GeneratorConfig(false, false, 2, 4, Map.of(path, producer));
+        var config = new GeneratorConfig(false, false, 2, 4, Map.of(path, producer), ValueConstraints.none());
         return new GeneratorContext(new SchemaDocument(new NullSchema(), Map.of()), new Random(1), config);
     }
 }
