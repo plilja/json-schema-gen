@@ -6,6 +6,8 @@ operation: *random* (the default), which emits arbitrary valid values, and
 *exhaustive*, which deliberately exercises the schema's boundary conditions to
 surface bugs.
 
+Gjuton is pre-1.0 — the API is unstable and breaking changes may land in any release.
+
 ## Requirements
 
 - Java 21 or later
@@ -18,16 +20,18 @@ Maven:
 <dependency>
     <groupId>io.github.gjuton</groupId>
     <artifactId>gjuton</artifactId>
-    <!-- TODO: version — not yet published to Maven Central -->
+    <version>0.0.1</version>
 </dependency>
 ```
 
 Gradle:
 
 ```groovy
-// TODO: version — not yet published to Maven Central
-implementation 'io.github.gjuton:gjuton'
+implementation 'io.github.gjuton:gjuton:0.0.1'
 ```
+
+Gjuton is pre-1.0 — breaking changes may land in any release. Pin a specific
+version and check the [changelog](CHANGELOG.md) before upgrading.
 
 Gjuton pulls in two transitive dependencies: Jackson (JSON serialization) and
 RgxGen (`pattern` generation).
