@@ -202,9 +202,9 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         };
 
         var focusProperty = phase == GenerationPhase.FOCUS ? optionalProperties.get(focusCursor) : null;
-        Map<String, Object> generated;
+        LinkedHashSet<String> selected;
         try {
-            generated = selectAndResolve(optionalProperties, targetCount, effectiveMin, effectiveMax, focusProperty);
+            selected = selectProperties(optionalProperties, targetCount, effectiveMax, focusProperty);
         } catch (UnsatisfiableSchemaException e) {
             // Forcing the focused property proved impossible; skip it so later FOCUS
             // attempts move on instead of re-targeting the same property every retry.
@@ -213,7 +213,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             }
             throw e;
         }
-        return result(generated);
+        return result(generateSelected(selected, targetCount, effectiveMin));
     }
 
     /**
@@ -241,9 +241,9 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
-     * Selects properties and generates the object. All transitively
-     * required properties are included unconditionally. Optional properties
-     * are included with all properties they transitively depend on, as long
+     * Selects which properties to include. All transitively required
+     * properties are included unconditionally. Optional properties are
+     * included with all properties they transitively depend on, as long
      * as the total fits within {@code targetCount}.
      *
      * <p>A non-null {@code focusProperty} is included ahead of the
@@ -252,11 +252,10 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
      * phase target still appears, and is omitted only when {@code maxProperties}
      * makes it impossible.
      */
-    private Map<String, Object> selectAndResolve(List<String> optionalProperties,
-                                                 int targetCount,
-                                                 int effectiveMin,
-                                                 int effectiveMax,
-                                                 String focusProperty) {
+    private LinkedHashSet<String> selectProperties(List<String> optionalProperties,
+                                                   int targetCount,
+                                                   int effectiveMax,
+                                                   String focusProperty) {
         var selected = new LinkedHashSet<>(requiredAndTransitiveRequired);
 
         if (selected.size() > effectiveMax) {
@@ -289,6 +288,16 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
             }
         }
 
+        return selected;
+    }
+
+    /**
+     * Generates a JSON object from the selected properties. Resolves
+     * dependent schemas, generates a value for each property, and
+     * synthesizes additional properties if needed to reach
+     * {@code targetCount}.
+     */
+    private Map<String, Object> generateSelected(Set<String> selected, int targetCount, int effectiveMin) {
         var effectiveSchema = resolveEffectiveSchema(selected);
         var obj = new LinkedHashMap<String, Object>();
         for (var property : selected) {
