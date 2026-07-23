@@ -11,7 +11,6 @@ import io.github.gjuton.internal.model.StringSchema;
 public final class IriReferenceGenerator implements Generator<String> {
 
     private final UriReferenceGenerator delegate;
-    private boolean emitted;
 
     public IriReferenceGenerator(GeneratorContext context, StringSchema schema) {
         this.delegate = new UriReferenceGenerator(context, schema, Alphabets.IDN_POOL);
@@ -19,18 +18,6 @@ public final class IriReferenceGenerator implements Generator<String> {
 
     @Override
     public String generate() {
-        var value = delegate.generate();
-        emitted = true;
-        return value;
-    }
-
-    @Override
-    public long emittedCount() {
-        return emitted ? 1 : 0;
-    }
-
-    @Override
-    public long totalCount() {
-        return 1;
+        return delegate.generate();
     }
 }

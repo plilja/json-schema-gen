@@ -1,8 +1,6 @@
 package io.github.gjuton.internal.generator;
 
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
-import io.github.gjuton.internal.model.Schema;
-import java.util.List;
 
 /**
  * Generator for schemas with a {@code $ref} keyword. A {@code $ref}
@@ -38,32 +36,5 @@ final class RefGenerator implements Generator<Object> {
         } finally {
             context.decrementGlobalRefDepth();
         }
-    }
-
-    /**
-     * The referenced schema, so its generator is counted once no matter how many
-     * {@code $ref} sites point at it. Empty when the ref cannot be resolved —
-     * generation surfaces that failure on its own.
-     */
-    @Override
-    public List<Schema> structuralChildren() {
-        try {
-            return List.of(context.resolveRef(ref));
-        } catch (IllegalArgumentException unresolved) {
-            return List.of();
-        }
-    }
-
-    // A $ref has no deliberate values of its own; the resolved target,
-    // exposed as a structural child above, carries the count instead.
-
-    @Override
-    public long emittedCount() {
-        return 0;
-    }
-
-    @Override
-    public long totalCount() {
-        return 0;
     }
 }

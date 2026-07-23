@@ -9,7 +9,8 @@ class NullGeneratorTest {
 
     @Test
     void alwaysReturnsNull() {
-        var generator = new NullGenerator();
+        var context = TestContexts.withSeed(1);
+        var generator = new NullGenerator(context);
 
         // when
         var values = IntStream.range(0, 20)
@@ -21,18 +22,33 @@ class NullGeneratorTest {
     }
 
     @Test
-    void singleDeliberateValueEmittedAfterFirstCall() {
-        // when
-        var generator = new NullGenerator();
-
-        // then
-        assertThat(generator.totalCount()).isEqualTo(1);
-        assertThat(generator.emittedCount()).isEqualTo(0);
+    void firstCallRegistersAsNovel() {
+        var context = TestContexts.withSeed(1);
+        var generator = new NullGenerator(context);
 
         // when
+        context.startRun();
         generator.generate();
+        context.completeRun();
 
         // then
-        assertThat(generator.emittedCount()).isEqualTo(1);
+        assertThat(context.noveltyScore()).isEqualTo(1.0);
+    }
+
+    @Test
+    void secondCallIsNotNovel() {
+        var context = TestContexts.withSeed(1);
+        var generator = new NullGenerator(context);
+
+        // when
+        context.startRun();
+        generator.generate();
+        context.completeRun();
+        context.startRun();
+        generator.generate();
+        context.completeRun();
+
+        // then
+        assertThat(context.noveltyScore()).isEqualTo(0.5);
     }
 }

@@ -13,13 +13,10 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     private static final int RETRY_BUDGET = 10;
 
     protected final GeneratorContext context;
-    private final int phaseCount;
     private E phase;
-    private long emitted;
 
     protected PhaseGenerator(Class<E> phaseClass, GeneratorContext context) {
         this.context = context;
-        this.phaseCount = phaseClass.getEnumConstants().length;
         this.phase = EnumUtil.first(phaseClass);
     }
 
@@ -35,9 +32,10 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
         boolean cycling = !context.isMinimal() && !context.isRandomOnly();
         var candidate = startingPhase();
         for (int attempt = 0; attempt < RETRY_BUDGET; attempt++) {
+            var triedPhase = candidate;
             GenerationResult<R> result;
             try {
-                result = generatePhase(candidate);
+                result = attemptPhase(triedPhase);
             } catch (UnsatisfiableSchemaException e) {
                 lastException = e;
                 result = GenerationResult.skip();
@@ -47,14 +45,33 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
                 phase = candidate;
             }
             if (result instanceof GenerationResult.Present<R> present) {
-                if (cycling) {
-                    emitted = Math.min(emitted + 1, phaseCount);
-                }
                 return present.value();
             }
         }
         throw lastException != null ? lastException
                 : new UnsatisfiableSchemaException("Unable to generate a value satisfying the schema");
+    }
+
+    /**
+     * Tries {@code candidatePhase}, registering it as visited on success.
+     * A discarded candidate — whether declined or failed — leaves no trace
+     * in the novelty state.
+     */
+    private GenerationResult<R> attemptPhase(E candidatePhase) {
+        int mark = context.checkpoint();
+        boolean succeeded = false;
+        try {
+            var result = generatePhase(candidatePhase);
+            succeeded = result instanceof GenerationResult.Present<R>;
+            if (succeeded) {
+                context.registerVisit(this, noveltyIndex(candidatePhase));
+            }
+            return result;
+        } finally {
+            if (!succeeded) {
+                context.rollback(mark);
+            }
+        }
     }
 
     private E startingPhase() {
@@ -72,26 +89,14 @@ public abstract class PhaseGenerator<E extends Enum<E>, R> implements Generator<
     }
 
     /**
-     * The generator's deliberate values are its boundary phases plus one slot
-     * for the terminal random phase, which every generator must emit once to be
-     * complete.
+     * The novelty-tracking index for {@code phase}. Defaults to the phase's
+     * declared ordinal, which is precise enough for generators whose every
+     * phase — including the random one — emits a fixed, singular value.
+     * Generators whose random phase itself draws from a finite set of
+     * distinguishable outcomes (an enum literal, a branch) override this to
+     * track that finer-grained outcome instead.
      */
-    @Override
-    public long totalCount() {
-        return phaseCount;
-    }
-
-    @Override
-    public long emittedCount() {
-        return emitted;
-    }
-
-    /**
-     * The ordinal, within the declared phase order, of the phase this generator
-     * is currently positioned at. A caller compares it against a particular
-     * phase's ordinal to tell whether generation has reached that phase.
-     */
-    protected final int currentPhaseOrdinal() {
+    protected int noveltyIndex(E phase) {
         return phase.ordinal();
     }
 

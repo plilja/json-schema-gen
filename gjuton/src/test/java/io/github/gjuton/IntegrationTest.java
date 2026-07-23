@@ -38,7 +38,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 @Slf4j
 class IntegrationTest {
     private static final int ITERATIONS = 100;
-    private static final int COVERAGE_ITERATIONS = 1000;
+    private static final int NOVELTY_ITERATIONS = 1000;
     private static final long DEFAULT_SEED = 42L;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -165,26 +165,26 @@ class IntegrationTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("schemaFiles")
-    void reachesFullCoverageWithinIterationBudget(String schemaName, Path schemaPath) throws IOException {
+    void noveltyReachesZeroWithinIterationBudget(String schemaName, Path schemaPath) throws IOException {
         // given
         var gen = Gjuton.of(schemaPath.toFile()).withSeed(DEFAULT_SEED).withGenerationMode(GenerationMode.EXHAUSTIVE);
 
-        // then 1 -- nothing generated yet, so no deliberate value has been emitted
-        assertThat(gen.valueCoverage())
-                .as("%s reports zero coverage before any generation", schemaName)
-                .isZero();
+        // then 1 -- nothing generated yet, so novelty defaults to 1.0
+        assertThat(gen.noveltyScore())
+                .as("%s reports full novelty before any generation", schemaName)
+                .isEqualTo(1.0);
 
         // when
         int invocation = 0;
-        while (gen.valueCoverage() < 1.0 && invocation < COVERAGE_ITERATIONS) {
+        do {
             gen.generate();
             invocation++;
-        }
+        } while (gen.noveltyScore() > 0.0 && invocation < NOVELTY_ITERATIONS);
 
         // then 2
-        assertThat(gen.valueCoverage())
-                .as("%s reached full value coverage within %d iterations", schemaName, COVERAGE_ITERATIONS)
-                .isEqualTo(1.0);
+        assertThat(gen.noveltyScore())
+                .as("%s's novelty score dropped to zero within %d iterations", schemaName, NOVELTY_ITERATIONS)
+                .isEqualTo(0.0);
     }
 
     private static Set<ValidationMessage> validateOrFail(

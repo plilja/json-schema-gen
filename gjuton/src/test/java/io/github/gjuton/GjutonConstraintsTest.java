@@ -153,23 +153,6 @@ class GjutonConstraintsTest {
         forEachValue(gen, node -> assertThat(node.size()).isBetween(2, 3));
     }
 
-    @Test
-    void arrayLengthZeroStillReachesFullCoverage() {
-        // when: the constraint forces empty arrays, so the element schema is never placed
-        var gen = Gjuton.of("""
-                { "type": "array", "items": { "type": "integer" } }""")
-                .withConstraints(Constraints.of().arrayLength(0, 0))
-                .withGenerationMode(GenerationMode.EXHAUSTIVE)
-                .withSeed(1L);
-
-        // then: coverage still climbs to 1.0, so a generate-until-covered loop terminates
-        for (int i = 0; i < SAMPLES && gen.valueCoverage() < 1.0; i++) {
-            var node = parse(gen.generate());
-            assertThat(node).isEmpty();
-        }
-        assertThat(gen.valueCoverage()).isEqualTo(1.0);
-    }
-
     @Nested
     class ModeAwareDefaults {
 

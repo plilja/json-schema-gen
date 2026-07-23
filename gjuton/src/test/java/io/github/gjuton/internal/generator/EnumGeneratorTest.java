@@ -11,6 +11,7 @@ import io.github.gjuton.internal.model.UntypedSchema;
 import io.github.gjuton.internal.parser.SchemaParser;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class EnumGeneratorTest {
@@ -107,28 +108,26 @@ class EnumGeneratorTest {
         }
     }
 
-    @Test
-    void totalIsValueCountAndEmittedTracksExhaustion() {
-        // when
-        var values = List.<Object>of("red", "green", "blue");
-        var generator = new EnumGenerator(withSeed(42), values, enumSchema(values));
+    @Nested
+    class NoveltyTracking {
 
-        // then
-        assertThat(generator.totalCount()).isEqualTo(3);
-        assertThat(generator.emittedCount()).isEqualTo(0);
+        @Test
+        void eachDistinctExhaustiveLiteralCountsAsItsOwnNovelty() {
+            var values = List.<Object>of("red", "green", "blue");
+            var context = withSeed(42);
+            var generator = new EnumGenerator(context, values, enumSchema(values));
 
-        // when
-        generator.generate();
-        generator.generate();
-        generator.generate();
+            // when
+            // three runs exhaust the three distinct literals in order — each
+            // literal is its own deliberate value, not just "the EXHAUSTIVE phase"
+            for (int i = 0; i < 3; i++) {
+                context.startRun();
+                generator.generate();
+                context.completeRun();
+            }
 
-        // then
-        assertThat(generator.emittedCount()).isEqualTo(3);
-
-        // when: random phase re-picks without exceeding the deliberate set
-        generator.generate();
-
-        // then
-        assertThat(generator.emittedCount()).isEqualTo(3);
+            // then
+            assertThat(context.noveltyScore()).isEqualTo(1.0);
+        }
     }
 }

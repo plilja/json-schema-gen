@@ -182,23 +182,18 @@ Gjuton gen = Gjuton.of(schema).withRecursionLimitsShallow();
 
 ## Knowing when to stop
 
-Under `EXHAUSTIVE` mode, `valueCoverage()` reports how thoroughly
-`generate()` has exercised the schema so far, as a fraction in `[0, 1]` of its
-deliberate value set — every enum literal, each boundary value, both booleans,
-and each const value. The fraction never decreases and reaches `1.0` only once
-every deliberate value has been emitted, so you can generate towards a target and
-stop:
+`noveltyScore()` reports the fraction of recent `generate()` calls that produced
+at least one value not already seen, in `[0, 1]`. It starts at `1.0` before any
+call and trends toward `0.0` as the generator exhausts its repertoire. Works in
+both `RANDOM` and `EXHAUSTIVE` mode.
 
 ```java
 Gjuton gen = Gjuton.of(schema).withGenerationMode(GenerationMode.EXHAUSTIVE);
 List<String> samples = new ArrayList<>();
-while (gen.valueCoverage() < 0.95) {
+while (gen.noveltyScore() > 0.0) {
     samples.add(gen.generate());
 }
 ```
-
-`valueCoverage()` is only meaningful under `EXHAUSTIVE` mode; calling it on an
-instance in the default `RANDOM` mode throws `IllegalStateException`.
 
 ## Behavior notes
 

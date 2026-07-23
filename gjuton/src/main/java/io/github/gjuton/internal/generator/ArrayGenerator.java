@@ -55,30 +55,6 @@ final class ArrayGenerator extends PhaseGenerator<ArrayGenerator.GenerationPhase
         return GenerationPhase.MIN_LENGTH;
     }
 
-    /**
-     * The element schemas the array can actually place, using the same schema
-     * instances as generation: reachable tuple-prefix positions, the item schema
-     * when there is room past the prefix, and the {@code contains} schema. Bounded
-     * by the effective maximum length, so an element schema that a length bound —
-     * from the schema or a caller constraint — leaves no room for does not inflate
-     * the coverage denominator.
-     */
-    @Override
-    public List<Schema> structuralChildren() {
-        var children = new ArrayList<Schema>();
-        int maxItems = effectiveMaxLength();
-        for (int i = 0; i < prefixSchemas.size() && i < maxItems; i++) {
-            children.add(prefixSchemas.get(i));
-        }
-        if (additionalItemsAllowed && maxItems > prefixSchemas.size()) {
-            children.add(itemSchema);
-        }
-        if (schema.getContains() != null && maxItems > 0) {
-            children.add(schema.getContains());
-        }
-        return children;
-    }
-
     @Override
     protected GenerationResult<List<Object>> generatePhase(GenerationPhase phase) {
         int minLength = effectiveMinLength();

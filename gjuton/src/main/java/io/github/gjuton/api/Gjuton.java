@@ -507,33 +507,24 @@ public final class Gjuton {
     }
 
     /**
-     * Returns how thoroughly {@link #generate()} has exercised this schema's
-     * <em>deliberate value set</em>. Only meaningful under
-     * {@link GenerationMode#EXHAUSTIVE} mode; under the default
-     * {@link GenerationMode#RANDOM} mode, which emits no deliberate values,
-     * this throws {@link IllegalStateException}.
+     * The fraction of the most recent calls to {@link #generate()} (and its
+     * overloads) that produced at least one value not already produced by an
+     * earlier call, in {@code [0, 1]}. {@code 1.0} before any call. Valid in
+     * both {@link GenerationMode#EXHAUSTIVE} and {@link GenerationMode#RANDOM}
+     * mode.
      *
-     * <p>The value is a fraction in {@code [0, 1]} of the deliberate value
-     * set: every enum literal, each boundary value, both booleans, and each
-     * const value. It is value-weighted, never decreases across calls, and is
-     * exactly {@code 1.0} only once every deliberate value has been emitted.
-     * This makes it safe to generate towards a target:
+     * <p>Trending toward {@code 0.0} signals that further calls are unlikely
+     * to turn up anything new — useful as a stopping condition for a
+     * generate-in-a-loop test:
      *
      * <pre>{@code
-     * Gjuton gen = Gjuton.of(schema).withGenerationMode(GenerationMode.EXHAUSTIVE);
-     * while (gen.valueCoverage() < 0.95) {
+     * Gjuton gen = Gjuton.of(schema);
+     * while (gen.noveltyScore() > 0.0) {
      *     gen.generate();
      * }
      * }</pre>
-     *
-     * @throws IllegalStateException if this instance is in
-     *     {@link GenerationMode#RANDOM} mode
      */
-    public double valueCoverage() {
-        if (mode == GenerationMode.RANDOM) {
-            throw new IllegalStateException(
-                    "valueCoverage() is only meaningful in EXHAUSTIVE mode; this instance is in RANDOM mode");
-        }
-        return generator.valueCoverage();
+    public double noveltyScore() {
+        return generator.noveltyScore();
     }
 }

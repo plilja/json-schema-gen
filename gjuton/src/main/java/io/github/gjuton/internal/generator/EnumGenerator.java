@@ -19,6 +19,7 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
 
     private final List<Object> values;
     private int index = 0;
+    private int lastPickedIndex;
 
     enum GenerationPhase {
         EXHAUSTIVE, RANDOM
@@ -44,20 +45,6 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
         return GenerationPhase.EXHAUSTIVE;
     }
 
-    /**
-     * The deliberate value set is every surviving enum literal, so full
-     * coverage means each literal has been emitted at least once.
-     */
-    @Override
-    public long totalCount() {
-        return values.size();
-    }
-
-    @Override
-    public long emittedCount() {
-        return Math.min(index, values.size());
-    }
-
     @Override
     protected GenerationPhase advanceToNext(GenerationPhase current) {
         if (current == GenerationPhase.EXHAUSTIVE) {
@@ -76,10 +63,20 @@ final class EnumGenerator extends PhaseGenerator<EnumGenerator.GenerationPhase, 
         // e.g. minimal mode always retries from EXHAUSTIVE without ever advancing
         // to RANDOM. Wrapping keeps it cycling through boundary values instead of
         // throwing.
-        var value = switch (phase) {
-            case EXHAUSTIVE -> values.get(index % values.size());
-            case RANDOM -> values.get(context.random().nextInt(values.size()));
+        lastPickedIndex = switch (phase) {
+            case EXHAUSTIVE -> index % values.size();
+            case RANDOM -> context.random().nextInt(values.size());
         };
-        return result(value);
+        return result(values.get(lastPickedIndex));
+    }
+
+    /**
+     * The literal actually picked, rather than the phase — {@code RANDOM}
+     * itself draws from the same finite literal set as {@code EXHAUSTIVE}, so
+     * novelty must be tracked per literal, not per phase.
+     */
+    @Override
+    protected int noveltyIndex(GenerationPhase phase) {
+        return lastPickedIndex;
     }
 }
