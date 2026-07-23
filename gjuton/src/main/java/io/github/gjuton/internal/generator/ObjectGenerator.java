@@ -86,12 +86,10 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
-     * Returns all properties that must be co-selected when {@code property}
-     * is present, including {@code property} itself. Follows
-     * {@code dependentRequired} edges and {@code dependentSchemas}
-     * transitively — including {@code required} and
-     * {@code dependentRequired} entries introduced by dependent schemas —
-     * until no new properties are discovered.
+     * Returns all properties that must be present when {@code property}
+     * is present, including {@code property} itself. The result reflects
+     * {@code dependentRequired} and {@code dependentSchemas} constraints
+     * transitively.
      */
     private Set<String> computePropertyClosure(String property) {
         var closure = new LinkedHashSet<String>();
@@ -292,10 +290,9 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
-     * Generates a JSON object from the selected properties. Resolves
-     * dependent schemas, generates a value for each property, and
-     * synthesizes additional properties if needed to reach
-     * {@code targetCount}.
+     * Generates a JSON object containing the given properties, using
+     * the effective schema for value generation and synthesizing
+     * additional properties if needed to reach {@code targetCount}.
      */
     private Map<String, Object> generateSelected(Set<String> selected, int targetCount, int effectiveMin) {
         var effectiveSchema = resolveEffectiveSchema(selected);
@@ -327,10 +324,9 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
-     * Returns the effective schema for generating property values, given
-     * the full set of selected properties. Merges the base schema with
-     * every {@code dependentSchemas} entry triggered by a selected
-     * property.
+     * Returns the schema that applies when the given properties are
+     * present — the base schema narrowed by any {@code dependentSchemas}
+     * constraints the selection triggers.
      */
     private ObjectSchema resolveEffectiveSchema(Set<String> selectedProperties) {
         var schemas = new ArrayList<Schema>();
