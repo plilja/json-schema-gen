@@ -338,6 +338,28 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
     }
 
     /**
+     * Returns the effective schema for generating property values, given
+     * the full set of selected properties. Merges the base schema with
+     * every {@code dependentSchemas} entry triggered by a selected
+     * property.
+     */
+    private ObjectSchema resolveEffectiveSchema(Set<String> selectedProperties) {
+        var schemas = new ArrayList<Schema>();
+        schemas.add(schema);
+        for (var property : selectedProperties) {
+            var depSchema = schema.getDependentSchemas().get(property);
+            if (depSchema != null) {
+                schemas.add(depSchema);
+            }
+        }
+        var merged = context.mergedSchema(schemas);
+        if (merged instanceof ObjectSchema mergedObj) {
+            return mergedObj;
+        }
+        return schema;
+    }
+
+    /**
      * Adds a property to {@code selected}, resolves its
      * {@code dependentRequired} and {@code dependentSchemas}, and
      * transitively resolves any newly required properties introduced
