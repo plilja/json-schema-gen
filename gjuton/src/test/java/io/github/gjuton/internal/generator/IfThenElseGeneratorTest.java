@@ -9,6 +9,7 @@ import io.github.gjuton.internal.parser.SchemaParser;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class IfThenElseGeneratorTest {
@@ -178,38 +179,34 @@ class IfThenElseGeneratorTest {
         assertThatThrownBy(generator::generate).isInstanceOf(UnsatisfiableSchemaException.class);
     }
 
-    @Test
-    void bothBranchesAreDeliberateValues() {
-        // when
-        var document = SchemaParser.parse(STATUS_CONDITIONAL);
-        var generator = generatorFor(document);
-
-        // then
-        assertThat(generator.totalCount()).isEqualTo(2);
-        assertThat(generator.emittedCount()).isEqualTo(0);
-
-        // when: then-branch only
-        generator.generate();
-
-        // then: only the then branch counts until the else branch is emitted
-        assertThat(generator.emittedCount()).isEqualTo(1);
-
-        // when: else-branch
-        generator.generate();
-
-        // then
-        assertThat(generator.emittedCount()).isEqualTo(2);
-
-        // when: random phase re-picks a branch without exceeding the set
-        generator.generate();
-
-        // then
-        assertThat(generator.emittedCount()).isEqualTo(2);
-    }
-
     private static IfThenElseGenerator generatorFor(SchemaDocument document) {
         return new IfThenElseGenerator(
                 new GeneratorContext(document, new Random(42)),
                 document.getRoot());
+    }
+
+    @Nested
+    class NoveltyTracking {
+
+        @Test
+        void noveltyIndexTracksTheBranchActuallyPickedNotThePhase() {
+            var document = SchemaParser.parse(STATUS_CONDITIONAL);
+            var context = new GeneratorContext(document, new Random(42));
+            var generator = new IfThenElseGenerator(context, document.getRoot());
+
+            // when
+            // RANDOM resolves to THEN or ELSE, the same two outcomes THEN and
+            // ELSE track directly — its novelty index must follow whichever
+            // branch generatePhase actually picked, not RANDOM's own ordinal
+            generator.generatePhase(IfThenElseGenerator.GenerationPhase.THEN);
+            int afterThen = generator.noveltyIndex(IfThenElseGenerator.GenerationPhase.RANDOM);
+
+            generator.generatePhase(IfThenElseGenerator.GenerationPhase.ELSE);
+            int afterElse = generator.noveltyIndex(IfThenElseGenerator.GenerationPhase.RANDOM);
+
+            // then
+            assertThat(afterThen).isEqualTo(IfThenElseGenerator.GenerationPhase.THEN.ordinal());
+            assertThat(afterElse).isEqualTo(IfThenElseGenerator.GenerationPhase.ELSE.ordinal());
+        }
     }
 }

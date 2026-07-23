@@ -576,163 +576,46 @@ class GjutonTest {
     }
 
     @Nested
-    class ValueCoverage {
+    class NoveltyScore {
 
         @Test
-        void startsAtZeroBeforeAnyGeneration() {
+        void startsAtOneBeforeAnyGeneration() {
             // when
             var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
             // then
-            assertThat(gen.valueCoverage()).isEqualTo(0.0);
+            assertThat(gen.noveltyScore()).isEqualTo(1.0);
         }
 
         @Test
-        void throwsInRandomMode() {
+        void doesNotThrowInRandomMode() {
             // when
             var gen = Gjuton.of(INT_SCHEMA).withGenerationMode(GenerationMode.RANDOM).withSeed(1L);
+            gen.generate();
 
             // then
-            assertThatThrownBy(gen::valueCoverage).isInstanceOf(IllegalStateException.class);
+            assertThat(gen.noveltyScore()).isEqualTo(1.0);
         }
 
         @Test
-        void booleanReachesOneAfterBothValuesAndRandom() {
-            var gen = Gjuton.of("""
-                    { "type": "boolean" }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
-
-            // when: both boundary values
-            gen.generate();
-            gen.generate();
-
-            // then
-            assertThat(gen.valueCoverage()).isLessThan(1.0);
-
-            // when: one random value completes the set
-            gen.generate();
-
-            // then
-            assertThat(gen.valueCoverage()).isEqualTo(1.0);
-        }
-
-        @Test
-        void enumReachesOneAfterAllLiteralsEmitted() {
+        void dropsAsTheSameValuesRepeat() {
             var gen = Gjuton.of("""
                     { "enum": ["a", "b", "c"] }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
 
-            // when
-            var coverages = new ArrayList<Double>();
-            for (int i = 0; i < 3; i++) {
-                gen.generate();
-                coverages.add(gen.valueCoverage());
-            }
+            // when: each of the three literals is novel in turn
+            gen.generate();
+            gen.generate();
+            gen.generate();
 
             // then
-            assertThat(coverages).containsExactly(1.0 / 3, 2.0 / 3, 1.0);
-        }
+            assertThat(gen.noveltyScore()).isEqualTo(1.0);
 
-        @Test
-        void neverDecreasesAcrossManyCalls() {
-            var gen = Gjuton.of(OBJECT_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(7L);
+            // when: two more calls can only repeat an already-seen literal
+            gen.generate();
+            gen.generate();
 
-            // when
-            double previous = gen.valueCoverage();
-            for (int i = 0; i < 100; i++) {
-                gen.generate();
-                double current = gen.valueCoverage();
-
-                // then
-                assertThat(current).isGreaterThanOrEqualTo(previous);
-                previous = current;
-            }
-        }
-
-        @Test
-        void largeEnumDominatesTheMeasure() {
-            var literals = new ArrayList<String>();
-            for (int i = 0; i < 100; i++) {
-                literals.add("\"v" + i + "\"");
-            }
-            var gen = Gjuton.of("{ \"enum\": [" + String.join(",", literals) + "] }")
-                    .withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
-
-            // when: a handful of calls
-            for (int i = 0; i < 5; i++) {
-                gen.generate();
-            }
-
-            // then: coverage grows in fine steps, nowhere near complete
-            assertThat(gen.valueCoverage()).isLessThan(0.1);
-        }
-
-        @Test
-        void loopToTargetTerminatesForObjectWithOptionalField() {
-            var gen = Gjuton.of("""
-                    {
-                      "type": "object",
-                      "properties": {
-                        "req": { "type": "integer", "minimum": 0, "maximum": 5 },
-                        "opt": { "type": "boolean" }
-                      },
-                      "required": ["req"]
-                    }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
-
-            // when
-            int calls = 0;
-            while (gen.valueCoverage() < 1.0 && calls < 1000) {
-                gen.generate();
-                calls++;
-            }
-
-            // then
-            assertThat(gen.valueCoverage()).isEqualTo(1.0);
-            assertThat(calls).isLessThan(1000);
-        }
-
-        @Test
-        void sharedRefDefinitionIsCountedOnce() {
-            // "flag" is reached through two properties but is one shared
-            // generator. Counting its ten literals twice would leave the
-            // denominator forever unfillable, so reaching 1.0 proves it is
-            // counted once.
-            var gen = Gjuton.of("""
-                    {
-                      "type": "object",
-                      "$defs": {
-                        "flag": { "enum": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] }
-                      },
-                      "properties": {
-                        "a": { "$ref": "#/$defs/flag" },
-                        "b": { "$ref": "#/$defs/flag" }
-                      },
-                      "required": ["a", "b"]
-                    }""").withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
-
-            // when
-            int calls = 0;
-            while (gen.valueCoverage() < 1.0 && calls < 1000) {
-                gen.generate();
-                calls++;
-            }
-
-            // then
-            assertThat(gen.valueCoverage()).isEqualTo(1.0);
-        }
-
-        @Test
-        void loopToTargetTerminatesForRecursiveSchema() {
-            var gen = Gjuton.of(RECURSIVE_SCHEMA).withGenerationMode(GenerationMode.EXHAUSTIVE).withSeed(1L);
-
-            // when
-            int calls = 0;
-            while (gen.valueCoverage() < 0.95 && calls < 1000) {
-                gen.generate();
-                calls++;
-            }
-
-            // then
-            assertThat(gen.valueCoverage()).isGreaterThanOrEqualTo(0.95);
-            assertThat(calls).isLessThan(1000);
+            // then: those two non-novel calls pull the score down
+            assertThat(gen.noveltyScore()).isEqualTo(0.6);
         }
     }
 
@@ -817,7 +700,8 @@ class GjutonTest {
         @Test
         @Disabled("#121 — the enum branch over-matches the string branch, so every enum "
                 + "value fails the exactly-one oneOf rule and is discarded; the values are "
-                + "swallowed and never reach output, yet valueCoverage() still reports 1.0")
+                + "swallowed and never reach output, yet the enum's own phases still advance "
+                + "as if each one had been emitted")
         void emitsAllEnumValuesBehindOverMatchingOneOf() {
             assertEmitsAllEnumValues("""
                     {

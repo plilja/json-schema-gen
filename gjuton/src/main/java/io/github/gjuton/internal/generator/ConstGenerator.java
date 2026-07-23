@@ -15,10 +15,11 @@ import io.github.gjuton.internal.model.Schema;
  */
 final class ConstGenerator implements Generator<Object> {
 
+    private final GeneratorContext context;
     private final Object value;
-    private boolean emitted;
 
     ConstGenerator(GeneratorContext context, Object value, Schema validationTarget) {
+        this.context = context;
         // A const has a single candidate, so if it violates a sibling
         // combining keyword there is nothing to retry — the schema is
         // unsatisfiable.
@@ -31,17 +32,7 @@ final class ConstGenerator implements Generator<Object> {
 
     @Override
     public Object generate() {
-        emitted = true;
+        context.registerVisit(this, 0);
         return value;
-    }
-
-    @Override
-    public long emittedCount() {
-        return emitted ? 1 : 0;
-    }
-
-    @Override
-    public long totalCount() {
-        return 1;
     }
 }

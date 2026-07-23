@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.parser.SchemaParser;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -928,6 +929,28 @@ class AnyOfAllOfOneOfGeneratorTest {
         }
 
         @Test
+        void twoGroupsMergedTogetherEventuallyProducesANonEmptyValue() {
+            // With both oneOf and anyOf present, the branch picked from each
+            // group is merged into one schema on every generate() call. If
+            // that merge isn't memoized, the merged schema is a fresh
+            // instance each time, so its own generator never advances past
+            // its first boundary phase (the empty string) and the value
+            // would stay "" forever.
+            var generator = generatorFor("""
+                    {
+                        "oneOf": [{"type": "string"}],
+                        "anyOf": [{"type": "string"}]
+                    }
+                    """);
+
+            // when
+            var values = Stream.generate(generator::generate).limit(10).toList();
+
+            // then
+            assertThat(values).anyMatch(v -> !"".equals(v));
+        }
+
+        @Test
         @SuppressWarnings("unchecked")
         void allThreeKeywordsSatisfiedSimultaneously() {
             var generator = generatorFor("""
@@ -1114,37 +1137,44 @@ class AnyOfAllOfOneOfGeneratorTest {
         }
     }
 
-    @Test
-    void deliberateValuesCycleThroughBranches() {
-        // when
-        var generator = generatorFor("""
-                {
-                    "oneOf": [ { "type": "integer" }, { "type": "string" } ]
-                }
-                """);
-
-        // then
-        assertThat(generator.totalCount()).isEqualTo(2);
-        assertThat(generator.emittedCount()).isEqualTo(0);
-
-        // when: cycle through both branches
-        generator.generate();
-        generator.generate();
-
-        // then
-        assertThat(generator.emittedCount()).isEqualTo(2);
-
-        // when: random phase re-picks without exceeding the deliberate set
-        generator.generate();
-
-        // then
-        assertThat(generator.emittedCount()).isEqualTo(2);
-    }
-
     private static AnyOfAllOfOneOfGenerator generatorFor(String json) {
         var document = SchemaParser.parse(json);
         return new AnyOfAllOfOneOfGenerator(
                 new GeneratorContext(document, new Random(42)),
                 document.getRoot());
+    }
+
+    @Nested
+    class NoveltyTracking {
+
+        @Test
+        void exhaustingBothBranchesThenRandomEventuallyStopsRegisteringAsNovel() {
+            var document = SchemaParser.parse("""
+                    {
+                        "oneOf": [
+                            {"type": "string"},
+                            {"type": "integer"}
+                        ]
+                    }
+                    """);
+            var context = new GeneratorContext(document, new Random(42));
+            var generator = new AnyOfAllOfOneOfGenerator(context, document.getRoot());
+
+            // when
+            // the two branches exhaust the EXHAUSTIVE cycle in the first two
+            // runs; every run after that falls into RANDOM, whose novelty index
+            // is a fixed sentinel regardless of which branch is picked, so it
+            // only registers as novel once before the score trends to zero
+            var scoresAfterEachRun = new ArrayList<Double>();
+            for (int i = 0; i < 8; i++) {
+                context.startRun();
+                generator.generate();
+                context.completeRun();
+                scoresAfterEachRun.add(context.noveltyScore(generator).orElseThrow());
+            }
+
+            // then
+            assertThat(scoresAfterEachRun.get(scoresAfterEachRun.size() - 1)).isEqualTo(0.0);
+        }
     }
 }

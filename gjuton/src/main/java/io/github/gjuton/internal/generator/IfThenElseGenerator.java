@@ -21,6 +21,7 @@ final class IfThenElseGenerator extends PhaseGenerator<IfThenElseGenerator.Gener
     private final Schema validationTarget;
     private final Schema ifAndThenAndParent;
     private final Schema elseAndParent;
+    private GenerationPhase lastPickedBranch;
 
     enum GenerationPhase {
         THEN, ELSE, RANDOM
@@ -102,36 +103,13 @@ final class IfThenElseGenerator extends PhaseGenerator<IfThenElseGenerator.Gener
         return ifAndThenAndParent != null ? GenerationPhase.THEN : GenerationPhase.ELSE;
     }
 
-    /**
-     * The deliberate value set is the satisfiable branches — {@code then} and
-     * {@code else}. An unsatisfiable branch is excluded so full coverage stays
-     * reachable; full coverage means each satisfiable branch has been emitted.
-     */
-    @Override
-    public long totalCount() {
-        long thenBranch = ifAndThenAndParent != null ? 1 : 0;
-        long elseBranch = elseAndParent != null ? 1 : 0;
-        return thenBranch + elseBranch;
-    }
-
-    @Override
-    public long emittedCount() {
-        long emitted = 0;
-        if (ifAndThenAndParent != null && GenerationPhase.THEN.ordinal() < currentPhaseOrdinal()) {
-            emitted++;
-        }
-        if (elseAndParent != null && GenerationPhase.ELSE.ordinal() < currentPhaseOrdinal()) {
-            emitted++;
-        }
-        return emitted;
-    }
-
     @Override
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
-        var composed = switch (phase) {
+        lastPickedBranch = phase == GenerationPhase.RANDOM ? randomBranch() : phase;
+        var composed = switch (lastPickedBranch) {
             case THEN -> ifAndThenAndParent;
             case ELSE -> elseAndParent;
-            case RANDOM -> randomBranch();
+            case RANDOM -> throw new IllegalStateException("randomBranch() never picks RANDOM");
         };
         if (composed == null) {
             return GenerationResult.skip();
@@ -143,13 +121,23 @@ final class IfThenElseGenerator extends PhaseGenerator<IfThenElseGenerator.Gener
         return GenerationResult.skip();
     }
 
-    private Schema randomBranch() {
+    private GenerationPhase randomBranch() {
         if (ifAndThenAndParent == null) {
-            return elseAndParent;
+            return GenerationPhase.ELSE;
         }
         if (elseAndParent == null) {
-            return ifAndThenAndParent;
+            return GenerationPhase.THEN;
         }
-        return context.random().nextBoolean() ? ifAndThenAndParent : elseAndParent;
+        return context.random().nextBoolean() ? GenerationPhase.THEN : GenerationPhase.ELSE;
+    }
+
+    /**
+     * The branch actually picked, rather than the phase — {@code RANDOM}
+     * itself resolves to one of the same two branches {@code THEN} and
+     * {@code ELSE} track, so novelty must follow the branch, not the phase.
+     */
+    @Override
+    protected int noveltyIndex(GenerationPhase phase) {
+        return lastPickedBranch.ordinal();
     }
 }

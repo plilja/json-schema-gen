@@ -2,21 +2,15 @@ package io.github.gjuton.internal.generator;
 
 final class NullGenerator implements Generator<Object> {
 
-    private boolean emitted;
+    private final GeneratorContext context;
+
+    NullGenerator(GeneratorContext context) {
+        this.context = context;
+    }
 
     @Override
     public Object generate() {
-        emitted = true;
+        context.registerVisit(this, 0);
         return null;
-    }
-
-    @Override
-    public long emittedCount() {
-        return emitted ? 1 : 0;
-    }
-
-    @Override
-    public long totalCount() {
-        return 1;
     }
 }

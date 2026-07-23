@@ -51,20 +51,36 @@ class ConstGeneratorTest {
     }
 
     @Test
-    void singleDeliberateValueEmittedAfterFirstCall() {
-        // when
+    void firstCallRegistersAsNovel() {
         var root = SchemaParser.parse(CONST_SATISFYING_ONE_OF).getRoot();
-        var generator = new ConstGenerator(contextFor(root), root.getConstValue(), root);
-
-        // then
-        assertThat(generator.totalCount()).isEqualTo(1);
-        assertThat(generator.emittedCount()).isEqualTo(0);
+        var context = contextFor(root);
+        var generator = new ConstGenerator(context, root.getConstValue(), root);
 
         // when
+        context.startRun();
         generator.generate();
+        context.completeRun();
 
         // then
-        assertThat(generator.emittedCount()).isEqualTo(1);
+        assertThat(context.noveltyScore()).isEqualTo(1.0);
+    }
+
+    @Test
+    void secondCallIsNotNovel() {
+        var root = SchemaParser.parse(CONST_SATISFYING_ONE_OF).getRoot();
+        var context = contextFor(root);
+        var generator = new ConstGenerator(context, root.getConstValue(), root);
+
+        // when
+        context.startRun();
+        generator.generate();
+        context.completeRun();
+        context.startRun();
+        generator.generate();
+        context.completeRun();
+
+        // then
+        assertThat(context.noveltyScore()).isEqualTo(0.5);
     }
 
     private static GeneratorContext contextFor(Schema root) {

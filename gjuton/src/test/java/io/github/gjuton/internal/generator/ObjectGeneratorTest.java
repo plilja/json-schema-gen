@@ -6,10 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.model.ObjectSchema;
 import io.github.gjuton.internal.parser.SchemaParser;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 class ObjectGeneratorTest {
@@ -886,6 +888,59 @@ class ObjectGeneratorTest {
         assertThat(results).allSatisfy(obj -> assertThat(obj).containsOnlyKeys("a"));
     }
 
+    @Test
+    void dependentSchemaMergedPropertyEventuallyProducesANonEmptyValue() {
+        // "toggle" is declared both in the base schema and in the schema
+        // "trigger" pulls in via dependentSchemas, so resolving it merges the
+        // two on every generate() call. If that merge isn't memoized, the
+        // merged property schema is a fresh instance each time, so its own
+        // generator never advances past its first boundary phase (the empty
+        // string) and "toggle" would stay "" forever.
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "required": ["trigger", "toggle"],
+                    "properties": {
+                        "trigger": {"const": "x"},
+                        "toggle": {"type": "string"}
+                    },
+                    "dependentSchemas": {
+                        "trigger": {
+                            "properties": {"toggle": {"type": "string"}}
+                        }
+                    }
+                }
+                """);
+
+        // when
+        var values = generate(generator, 10).stream().map(obj -> obj.get("toggle")).toList();
+
+        // then
+        assertThat(values).anyMatch(v -> !"".equals(v));
+    }
+
+    @Test
+    void patternPropertyMergedPropertyEventuallyProducesANonEmptyValue() {
+        // "toggle" is declared in properties and also matched by a
+        // patternProperties regex, so resolveFieldSchema merges the two on
+        // every generate() call — same identity-instability risk as the
+        // dependentSchemas case above.
+        var generator = objectGenerator("""
+                {
+                    "type": "object",
+                    "required": ["toggle"],
+                    "properties": {"toggle": {"type": "string"}},
+                    "patternProperties": {"^to.*": {"type": "string"}}
+                }
+                """);
+
+        // when
+        var values = generate(generator, 10).stream().map(obj -> obj.get("toggle")).toList();
+
+        // then
+        assertThat(values).anyMatch(v -> !"".equals(v));
+    }
+
     private static List<Map<String, Object>> generate(ObjectGenerator generator, int iterations) {
         return IntStream.range(0, iterations).mapToObj(i -> generator.generate()).toList();
     }
@@ -900,5 +955,57 @@ class ObjectGeneratorTest {
         var config = new GeneratorConfig(false, true, 2, 4, Map.of(), Map.of(), ValueConstraints.forExhaustive());
         var context = new GeneratorContext(document, new Random(42), config);
         return new ObjectGenerator(context, (ObjectSchema) document.getRoot());
+    }
+
+    @Nested
+    class FocusNovelty {
+
+        @Test
+        void focusStaysOnAPropertyUntilItStopsCommittingNewNoveltyThenMovesToTheNext() {
+            var document = SchemaParser.parse("""
+                    {
+                        "type": "object",
+                        "properties": {
+                            "a": {"type": "string"},
+                            "b1": {"type": "boolean"},
+                            "b2": {"type": "boolean"}
+                        },
+                        "required": ["a"]
+                    }
+                    """);
+            var context = new GeneratorContext(document, new Random(1));
+            var generator = new ObjectGenerator(context, (ObjectSchema) document.getRoot());
+
+            // when
+            // Runs 1-2 (MIN/MAX_PROPERTIES) are discarded below. FOCUS then
+            // drives b1, then b2, each staying focused until its windowed
+            // novelty score (fraction of its 5 most recent visits that were
+            // new) hits zero - 7 visits each, since one novel visit already
+            // banked during MAX_PROPERTIES has to age out of the window
+            // first. Once both are exhausted, FOCUS skips and falls through
+            // to RANDOM within that same call ("b1"); advancing the cycle
+            // twice in one call starts the next call at MIN_PROPERTIES
+            // ("neither").
+            var focused = generateRuns(context, generator, 18).stream()
+                    .skip(2)
+                    .map(obj -> obj.containsKey("b1") ? "b1" : obj.containsKey("b2") ? "b2" : "neither")
+                    .toList();
+
+            // then
+            assertThat(focused).containsExactly(
+                    "b1", "b1", "b1", "b1", "b1", "b1", "b1",
+                    "b2", "b2", "b2", "b2", "b2", "b2", "b2",
+                    "b1", "neither");
+        }
+
+        private static List<Map<String, Object>> generateRuns(GeneratorContext context, ObjectGenerator generator, int runs) {
+            var results = new ArrayList<Map<String, Object>>();
+            for (int i = 0; i < runs; i++) {
+                context.startRun();
+                results.add(generator.generate());
+                context.completeRun();
+            }
+            return results;
+        }
     }
 }

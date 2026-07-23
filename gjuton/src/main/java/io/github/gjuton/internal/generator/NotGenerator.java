@@ -16,11 +16,12 @@ import io.github.gjuton.internal.model.Schema;
  */
 final class NotGenerator implements Generator<Object> {
 
+    private final GeneratorContext context;
     private final SchemaValidator validator;
     private final Schema schema;
-    private boolean emitted;
 
     NotGenerator(GeneratorContext context, Schema schema) {
+        this.context = context;
         this.validator = new SchemaValidator(context);
         this.schema = schema;
     }
@@ -31,17 +32,7 @@ final class NotGenerator implements Generator<Object> {
         if (value == Probes.NO_MATCH) {
             throw new UnsatisfiableSchemaException("No candidate value satisfies the schema's 'not' constraint");
         }
-        emitted = true;
+        context.registerVisit(this, 0);
         return value;
-    }
-
-    @Override
-    public long emittedCount() {
-        return emitted ? 1 : 0;
-    }
-
-    @Override
-    public long totalCount() {
-        return 1;
     }
 }

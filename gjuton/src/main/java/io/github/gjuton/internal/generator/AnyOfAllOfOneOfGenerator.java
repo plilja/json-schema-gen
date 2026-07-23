@@ -29,6 +29,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
     private final List<List<Schema>> anyOfGroups;
     private final int exhaustiveCycleLength;
     private int index = 0;
+    private int lastPickedIndex;
 
     enum GenerationPhase {
         EXHAUSTIVE, RANDOM
@@ -106,22 +107,6 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
         // allOf-only has no branches to cycle but still emits one deliberate
         // value (the merged base).
         this.exhaustiveCycleLength = Math.max(1, maxGroupSize);
-    }
-
-    /**
-     * The deliberate value set is one value per branch — the largest
-     * {@code oneOf}/{@code anyOf} group, or a single value from the merged base
-     * when the schema is {@code allOf}-only. Full coverage means each of those
-     * branches has been emitted.
-     */
-    @Override
-    public long totalCount() {
-        return exhaustiveCycleLength;
-    }
-
-    @Override
-    public long emittedCount() {
-        return Math.min(index, exhaustiveCycleLength);
     }
 
     /**
@@ -233,6 +218,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
      */
     @Override
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
+        lastPickedIndex = Math.min(index, exhaustiveCycleLength);
         var schema = switch (phase) {
             case EXHAUSTIVE -> pickExhaustive();
             case RANDOM -> pickRandom();
@@ -300,6 +286,18 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
     }
 
     /**
+     * The branch index actually picked for {@code EXHAUSTIVE}, so each cycled
+     * branch counts as its own deliberate value. {@code RANDOM} draws a
+     * combination from a space too large to index precisely, so it is
+     * instead tracked as a single slot past the exhaustive range: one visit
+     * there stands for "at least one random combination produced."
+     */
+    @Override
+    protected int noveltyIndex(GenerationPhase phase) {
+        return lastPickedIndex;
+    }
+
+    /**
      * Selects the next branch from each group using the current index,
      * wrapping around shorter groups. Falls back to the base schema
      * when no oneOf or anyOf groups exist (allOf-only case).
@@ -315,7 +313,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
         for (var group : anyOfGroups) {
             picks.add(group.get(index % group.size()));
         }
-        return SchemaMerger.merge(picks);
+        return context.mergedSchema(picks);
     }
 
     /**
@@ -337,7 +335,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
         if (picks.size() == 1) {
             return picks.getFirst();
         }
-        return SchemaMerger.merge(picks);
+        return context.mergedSchema(picks);
     }
 
     /**
@@ -350,7 +348,7 @@ final class AnyOfAllOfOneOfGenerator extends PhaseGenerator<AnyOfAllOfOneOfGener
         for (int n = context.random().nextInt(group.size()) + 1; n >= 1; n--) {
             var subset = RandomUtil.randomSubset(group, n, context.random());
             try {
-                return SchemaMerger.merge(subset);
+                return context.mergedSchema(subset);
             } catch (UnsatisfiableSchemaException ignored) {
                 // try smaller
             }
