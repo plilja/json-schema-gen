@@ -58,7 +58,7 @@ final class UntypedGenerator extends PhaseGenerator<UntypedGenerator.GenerationP
     @Override
     protected GenerationResult<Object> generatePhase(GenerationPhase phase) {
         return switch (phase) {
-            case CYCLE -> result(TYPE_SAMPLES.get(cycleIndex++));
+            case CYCLE -> result(TYPE_SAMPLES.get(cycleIndex++ % TYPE_SAMPLES.size()));
             case RANDOM -> result(RandomUtil.randomOne(TYPE_SAMPLES, context.random()));
         };
     }
