@@ -80,7 +80,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
                         LinkedHashMap::new));
         var allRequired = new LinkedHashSet<String>();
         for (var req : schema.getRequired()) {
-            allRequired.addAll(computePropertyClosure(req));
+            allRequired.addAll(computeImpliedProperties(req, schema.getDependentRequired(), schema.getDependentSchemas()));
         }
         this.requiredAndTransitiveRequired = List.copyOf(allRequired);
     }
@@ -91,11 +91,13 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
      * {@code dependentRequired} and {@code dependentSchemas} constraints
      * transitively.
      */
-    private Set<String> computePropertyClosure(String property) {
+    static Set<String> computeImpliedProperties(String property,
+                                              Map<String, List<String>> dependentRequired,
+                                              Map<String, Schema> dependentSchemas) {
         var closure = new LinkedHashSet<String>();
         var queue = new ArrayDeque<String>();
         queue.add(property);
-        var depRequired = new HashMap<>(schema.getDependentRequired());
+        var depRequired = new HashMap<>(dependentRequired);
 
         while (!queue.isEmpty()) {
             var prop = queue.poll();
@@ -107,7 +109,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
                     queue.add(dependent);
                 }
             }
-            var depSchema = schema.getDependentSchemas().get(prop);
+            var depSchema = dependentSchemas.get(prop);
             if (depSchema instanceof ObjectSchema depObj) {
                 for (var req : depObj.getRequired()) {
                     if (!closure.contains(req)) {
@@ -263,7 +265,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
         }
 
         if (focusProperty != null && !selected.contains(focusProperty)) {
-            var closure = computePropertyClosure(focusProperty);
+            var closure = computeImpliedProperties(focusProperty, schema.getDependentRequired(), schema.getDependentSchemas());
             var tentative = new LinkedHashSet<>(selected);
             tentative.addAll(closure);
             Integer maxProperties = schema.getMaxProperties();
@@ -277,7 +279,7 @@ final class ObjectGenerator extends PhaseGenerator<ObjectGenerator.GenerationPha
                 break;
             }
             if (!selected.contains(property)) {
-                var closure = computePropertyClosure(property);
+                var closure = computeImpliedProperties(property, schema.getDependentRequired(), schema.getDependentSchemas());
                 var tentative = new LinkedHashSet<>(selected);
                 tentative.addAll(closure);
                 if (tentative.size() <= targetCount) {

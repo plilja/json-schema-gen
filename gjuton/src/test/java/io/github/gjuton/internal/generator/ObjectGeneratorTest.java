@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.gjuton.errors.UnsatisfiableSchemaException;
 import io.github.gjuton.internal.model.ObjectSchema;
+import io.github.gjuton.internal.model.Schema;
 import io.github.gjuton.internal.parser.SchemaParser;
 import java.util.ArrayList;
 import java.util.List;
@@ -943,6 +944,97 @@ class ObjectGeneratorTest {
 
     private static List<Map<String, Object>> generate(ObjectGenerator generator, int iterations) {
         return IntStream.range(0, iterations).mapToObj(i -> generator.generate()).toList();
+    }
+
+    @Nested
+    class ComputeImpliedProperties {
+
+        @Test
+        void returnsPropertyItselfWhenNoDependencies() {
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a", Map.of(), Map.of());
+
+            // then
+            assertThat(result).containsExactly("a");
+        }
+
+        @Test
+        void includesDirectDependentRequired() {
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a",
+                    Map.of("a", List.of("b", "c")),
+                    Map.of());
+
+            // then
+            assertThat(result).containsExactlyInAnyOrder("a", "b", "c");
+        }
+
+        @Test
+        void followsDependentRequiredTransitively() {
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a",
+                    Map.of("a", List.of("b"), "b", List.of("c")),
+                    Map.of());
+
+            // then
+            assertThat(result).containsExactlyInAnyOrder("a", "b", "c");
+        }
+
+        @Test
+        void terminatesOnCircularDependentRequired() {
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a",
+                    Map.of("a", List.of("b"), "b", List.of("a")),
+                    Map.of());
+
+            // then
+            assertThat(result).containsExactlyInAnyOrder("a", "b");
+        }
+
+        @Test
+        void includesRequiredFromDependentSchema() {
+            var depSchema = (ObjectSchema) SchemaParser.parse("""
+                    {"type": "object", "required": ["c"]}
+                    """).getRoot();
+
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a",
+                    Map.of(),
+                    Map.of("a", depSchema));
+
+            // then
+            assertThat(result).containsExactlyInAnyOrder("a", "c");
+        }
+
+        @Test
+        void mergesDependentRequiredFromDependentSchemaWithExisting() {
+            var depSchema = (ObjectSchema) SchemaParser.parse("""
+                    {"type": "object", "dependentRequired": {"b": ["d"]}}
+                    """).getRoot();
+
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a",
+                    Map.of("a", List.of("b"), "b", List.of("c")),
+                    Map.of("a", depSchema));
+
+            // then
+            assertThat(result).containsExactlyInAnyOrder("a", "b", "c", "d");
+        }
+
+        @Test
+        void includesDependentRequiredFromDependentSchema() {
+            var depSchema = (ObjectSchema) SchemaParser.parse("""
+                    {"type": "object", "dependentRequired": {"a": ["c"]}}
+                    """).getRoot();
+
+            // when
+            var result = ObjectGenerator.computeImpliedProperties("a",
+                    Map.of("a", List.of("b")),
+                    Map.of("b", depSchema));
+
+            // then
+            assertThat(result).containsExactlyInAnyOrder("a", "b", "c");
+        }
     }
 
     private static ObjectGenerator objectGenerator(String json) {
