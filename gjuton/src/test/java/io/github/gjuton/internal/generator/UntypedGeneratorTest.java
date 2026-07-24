@@ -2,6 +2,7 @@ package io.github.gjuton.internal.generator;
 
 import static io.github.gjuton.internal.generator.TestContexts.withSeed;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,29 @@ class UntypedGeneratorTest {
 
         // then
         assertThat(result).isNull();
+    }
+
+    @Test
+    void generateSucceedsInMinimalModeAfterCycleExhaustion() {
+        var context = withSeed(1);
+        var generator = new UntypedGenerator(context);
+
+        // when — exhaust the full boundary-value cycle (13 samples)
+        for (int i = 0; i < 13; i++) {
+            context.startRun();
+            generator.generate();
+            context.completeRun();
+        }
+
+        // when — push ref depth past the soft limit so isMinimal() returns true
+        for (int i = 0; i < GeneratorConfig.DEFAULT_REF_SOFT_DEPTH; i++) {
+            context.incrementGlobalRefDepth();
+        }
+
+        // then
+        context.startRun();
+        assertThatCode(generator::generate).doesNotThrowAnyException();
+        context.completeRun();
     }
 
     @Test
